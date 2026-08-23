@@ -51,7 +51,6 @@ export function usePresentToggle() {
       await win.setFullscreen(true);
       await win.setFocus();
       setPresenting(true);
-      await win.listen("tauri://destroyed", () => setPresenting(false));
     }
   };
 
