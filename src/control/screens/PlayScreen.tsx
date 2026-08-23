@@ -12,16 +12,26 @@ export function PlayScreen() {
   const submit = (e: FormEvent) => {
     e.preventDefault();
     const raw = input.trim();
-    setInput("");
-    if (!raw || !canPlay || !round) return;
+    if (!raw || !canPlay || !round) {
+      setInput("");
+      return;
+    }
     const n = Number(raw);
-    if (!Number.isInteger(n)) return;
-    if (n <= round.low || n >= round.high) {
-      setError(`Out of range — must be between ${round.low} and ${round.high}`);
+    if (!Number.isInteger(n)) {
+      setError("Enter a whole number");
+      return;
+    }
+    if (n < 1 || n > 99) {
+      setError("Must be between 1 and 99");
+      return;
+    }
+    if (n < round.low || n > round.high) {
+      setError(`Out of range — must be from ${round.low} to ${round.high}`);
       return;
     }
     setError(null);
     call(n);
+    setInput("");
   };
 
   return (
@@ -55,6 +65,7 @@ export function PlayScreen() {
             onMouseLeave={() => setBombRevealed(false)}
             onTouchStart={() => setBombRevealed(true)}
             onTouchEnd={() => setBombRevealed(false)}
+            onTouchCancel={() => setBombRevealed(false)}
             disabled={!round}
             className="select-none text-2xl font-bold text-[#F5C518] disabled:opacity-40"
           >

@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+
 interface CenterDisplayProps {
   centerVideoSrc: string;
   centerIconSrc: string;
@@ -5,7 +7,20 @@ interface CenterDisplayProps {
   size: number;
 }
 
+const DEFAULT_ICON_SRC = "/media/center-icon-default.png";
+
 export function CenterDisplay({ centerVideoSrc, centerIconSrc, revealedBomb, size }: CenterDisplayProps) {
+  const [videoFailed, setVideoFailed] = useState(false);
+  const [iconFailed, setIconFailed] = useState(false);
+
+  useEffect(() => {
+    setVideoFailed(false);
+  }, [centerVideoSrc]);
+
+  useEffect(() => {
+    setIconFailed(false);
+  }, [centerIconSrc]);
+
   if (revealedBomb !== null) {
     return (
       <div
@@ -17,7 +32,7 @@ export function CenterDisplay({ centerVideoSrc, centerIconSrc, revealedBomb, siz
     );
   }
 
-  if (centerVideoSrc) {
+  if (centerVideoSrc && !videoFailed) {
     return (
       // eslint-disable-next-line jsx-a11y/media-has-caption
       <video
@@ -25,6 +40,7 @@ export function CenterDisplay({ centerVideoSrc, centerIconSrc, revealedBomb, siz
         autoPlay
         loop
         muted
+        onError={() => setVideoFailed(true)}
         style={{ width: size, height: size }}
         className="object-contain"
       />
@@ -33,7 +49,8 @@ export function CenterDisplay({ centerVideoSrc, centerIconSrc, revealedBomb, siz
 
   return (
     <img
-      src={centerIconSrc}
+      src={iconFailed ? DEFAULT_ICON_SRC : centerIconSrc}
+      onError={() => setIconFailed(true)}
       alt=""
       style={{ width: size, height: size }}
       className="object-contain"
