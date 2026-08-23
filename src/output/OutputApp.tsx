@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { SlotReel } from "../components/SlotReel";
 import { useBoundReels } from "./useBoundReels";
@@ -37,6 +37,7 @@ export function OutputApp() {
   const prevBoundsRef = useRef<{ low: number; high: number }>({ low: 1, high: 99 });
   const settingsRef = useRef<Settings>(settings);
   const [exploding, setExploding] = useState(false);
+  const handleExplosionDone = useCallback(() => setExploding(false), []);
 
   useEffect(() => {
     settingsRef.current = settings;
@@ -120,7 +121,7 @@ export function OutputApp() {
               ? convertFileSrc(settings.explosion_video_path)
               : "/media/explosion-default.mp4"
           }
-          onDone={() => setExploding(false)}
+          onDone={handleExplosionDone}
         />
       )}
     </div>
