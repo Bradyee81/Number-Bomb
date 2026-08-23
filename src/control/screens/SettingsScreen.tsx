@@ -2,7 +2,7 @@ import { useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { copyFile, mkdir, BaseDirectory } from "@tauri-apps/plugin-fs";
 import { appDataDir, join } from "@tauri-apps/api/path";
-import { CHROMA_PRESETS, FONT_PRESETS, type Settings } from "../../types";
+import { CHROMA_PRESETS, CUSTOM_FONT_FAMILY_NAME, FONT_PRESETS, type Settings } from "../../types";
 import { useSettings } from "../SettingsContext";
 
 export function SettingsScreen() {
@@ -67,6 +67,28 @@ export function SettingsScreen() {
       await copyFile(selected, destRelative, { toPathBaseDir: BaseDirectory.AppData });
       const absolutePath = await join(await appDataDir(), destRelative);
       await updateSettings({ digit_strip_path: absolutePath });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const pickCustomFont = async () => {
+    const selected = await open({
+      multiple: false,
+      filters: [{ name: "Font", extensions: ["ttf", "otf", "woff", "woff2"] }],
+    });
+    if (!selected || Array.isArray(selected)) return;
+    setBusy(true);
+    try {
+      await mkdir("media", { baseDir: BaseDirectory.AppData, recursive: true });
+      const fileName = selected.split(/[\\/]/).pop() ?? "custom-font.ttf";
+      const destRelative = `media/${fileName}`;
+      await copyFile(selected, destRelative, { toPathBaseDir: BaseDirectory.AppData });
+      const absolutePath = await join(await appDataDir(), destRelative);
+      await updateSettings({
+        custom_font_path: absolutePath,
+        bomb_font_family: CUSTOM_FONT_FAMILY_NAME,
+      });
     } finally {
       setBusy(false);
     }
@@ -195,7 +217,31 @@ export function SettingsScreen() {
               88
             </button>
           ))}
+          {settings.custom_font_path && (
+            <button
+              onClick={() => set({ bomb_font_family: CUSTOM_FONT_FAMILY_NAME })}
+              className={`rounded-md border px-3 py-2 text-lg ${
+                settings.bomb_font_family === CUSTOM_FONT_FAMILY_NAME
+                  ? "border-[#F5C518] ring-1 ring-[#F5C518]"
+                  : "border-white/10 hover:border-white/25"
+              }`}
+              title="Your uploaded font"
+            >
+              My Font
+            </button>
+          )}
         </div>
+        <button
+          onClick={pickCustomFont}
+          disabled={busy}
+          className="mb-4 rounded-md border border-white/15 px-3 py-1.5 text-sm text-white/70 hover:bg-white/5 disabled:opacity-40"
+        >
+          {busy
+            ? "Copying…"
+            : settings.custom_font_path
+              ? "Replace uploaded font…"
+              : "Upload your own font…"}
+        </button>
         <label className="mb-1 block text-xs uppercase text-white/40">
           Font size ({settings.bomb_font_size_px}px)
         </label>

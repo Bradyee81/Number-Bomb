@@ -8,6 +8,7 @@ import { ExplosionOverlay } from "./ExplosionOverlay";
 import { CenterDisplay } from "./CenterDisplay";
 import { playVoiceover } from "../lib/audio";
 import {
+  CUSTOM_FONT_FAMILY_NAME,
   DEFAULT_DIGIT_STRIP,
   DEFAULT_SETTINGS,
   DIGIT_CELL_HEIGHT,
@@ -44,6 +45,26 @@ export function OutputApp() {
   useEffect(() => {
     settingsRef.current = settings;
   }, [settings]);
+
+  useEffect(() => {
+    if (!settings.custom_font_path) return;
+    const url = convertFileSrc(settings.custom_font_path);
+    const fontFace = new FontFace(CUSTOM_FONT_FAMILY_NAME, `url("${url}")`);
+    let cancelled = false;
+    fontFace
+      .load()
+      .then((loaded) => {
+        if (!cancelled) document.fonts.add(loaded);
+      })
+      .catch(() => {
+        // custom font failed to load — bomb text falls back to the browser's
+        // default font for an unresolved family name, same non-blocking
+        // posture as the video/image fallbacks elsewhere in this window.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [settings.custom_font_path]);
 
   useEffect(() => {
     loadSettings().then(setSettings);

@@ -27,6 +27,8 @@ export const FONT_PRESETS: FontPreset[] = [
   { name: "Courier New", family: "'Courier New', Courier, monospace" },
 ];
 
+export const CUSTOM_FONT_FAMILY_NAME = "NumberBombCustomFont";
+
 export interface Settings {
   chroma_color: string;
   explosion_video_path: string;
@@ -36,6 +38,7 @@ export interface Settings {
   digit_strip_path: string;
   bomb_font_family: string;
   bomb_font_size_px: number;
+  custom_font_path: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -47,6 +50,7 @@ export const DEFAULT_SETTINGS: Settings = {
   digit_strip_path: "",
   bomb_font_family: FONT_PRESETS[0].family,
   bomb_font_size_px: 260,
+  custom_font_path: "",
 };
 
 export const DEFAULT_DIGIT_STRIP = "/assets/digit-strip-default.svg";
