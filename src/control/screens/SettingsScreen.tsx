@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { copyFile, mkdir, BaseDirectory } from "@tauri-apps/plugin-fs";
+import { appDataDir, join } from "@tauri-apps/api/path";
 import { CHROMA_PRESETS, type Settings } from "../../types";
 import { useSettings } from "../SettingsContext";
 
@@ -26,7 +27,8 @@ export function SettingsScreen() {
       const fileName = selected.split(/[\\/]/).pop() ?? "explosion.mp4";
       const destRelative = `media/${fileName}`;
       await copyFile(selected, destRelative, { toPathBaseDir: BaseDirectory.AppData });
-      await updateSettings({ explosion_video_path: destRelative });
+      const absolutePath = await join(await appDataDir(), destRelative);
+      await updateSettings({ explosion_video_path: absolutePath });
     } finally {
       setBusy(false);
     }

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { convertFileSrc } from "@tauri-apps/api/core";
 import { SlotReel } from "../components/SlotReel";
 import { useBoundReels } from "./useBoundReels";
 import { onEvent } from "../lib/events";
@@ -114,7 +115,11 @@ export function OutputApp() {
       </div>
       {exploding && (
         <ExplosionOverlay
-          videoSrc={settings.explosion_video_path || "/media/explosion-default.mp4"}
+          videoSrc={
+            settings.explosion_video_path
+              ? convertFileSrc(settings.explosion_video_path)
+              : "/media/explosion-default.mp4"
+          }
           onDone={() => setExploding(false)}
         />
       )}
