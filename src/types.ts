@@ -14,12 +14,28 @@ export const CHROMA_PRESETS: ChromaPreset[] = [
   { name: "Royal Blue", hex: "#1E3A8A" },
 ];
 
+export interface FontPreset {
+  name: string;
+  family: string;
+}
+
+export const FONT_PRESETS: FontPreset[] = [
+  { name: "Segoe UI (Default)", family: "'Segoe UI', system-ui, -apple-system, sans-serif" },
+  { name: "Impact", family: "Impact, 'Arial Black', sans-serif" },
+  { name: "Arial Black", family: "'Arial Black', Arial, sans-serif" },
+  { name: "Georgia", family: "Georgia, 'Times New Roman', serif" },
+  { name: "Courier New", family: "'Courier New', Courier, monospace" },
+];
+
 export interface Settings {
   chroma_color: string;
   explosion_video_path: string;
   voiceover_volume: number;
   center_video_path: string;
   center_icon_path: string;
+  digit_strip_path: string;
+  bomb_font_family: string;
+  bomb_font_size_px: number;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -28,6 +44,9 @@ export const DEFAULT_SETTINGS: Settings = {
   voiceover_volume: 1,
   center_video_path: "",
   center_icon_path: "",
+  digit_strip_path: "",
+  bomb_font_family: FONT_PRESETS[0].family,
+  bomb_font_size_px: 260,
 };
 
 export const DEFAULT_DIGIT_STRIP = "/assets/digit-strip-default.svg";

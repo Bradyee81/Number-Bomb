@@ -5,11 +5,20 @@ interface CenterDisplayProps {
   centerIconSrc: string;
   revealedBomb: number | null;
   size: number;
+  bombFontFamily: string;
+  bombFontSizePx: number;
 }
 
 const DEFAULT_ICON_SRC = "/media/center-icon-default.png";
 
-export function CenterDisplay({ centerVideoSrc, centerIconSrc, revealedBomb, size }: CenterDisplayProps) {
+export function CenterDisplay({
+  centerVideoSrc,
+  centerIconSrc,
+  revealedBomb,
+  size,
+  bombFontFamily,
+  bombFontSizePx,
+}: CenterDisplayProps) {
   const [videoFailed, setVideoFailed] = useState(false);
   const [iconFailed, setIconFailed] = useState(false);
 
@@ -25,7 +34,12 @@ export function CenterDisplay({ centerVideoSrc, centerIconSrc, revealedBomb, siz
     return (
       <div
         className="flex items-center justify-center font-bold text-[#F5C518]"
-        style={{ width: size, height: size, fontSize: size * 0.5 }}
+        style={{
+          width: size,
+          height: size,
+          fontSize: bombFontSizePx,
+          fontFamily: bombFontFamily,
+        }}
       >
         {String(revealedBomb).padStart(2, "0")}
       </div>

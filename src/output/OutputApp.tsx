@@ -87,7 +87,9 @@ export function OutputApp() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const stripUrl = DEFAULT_DIGIT_STRIP;
+  const stripUrl = settings.digit_strip_path
+    ? convertFileSrc(settings.digit_strip_path)
+    : DEFAULT_DIGIT_STRIP;
 
   return (
     <div
@@ -119,6 +121,8 @@ export function OutputApp() {
         }
         revealedBomb={revealedBomb}
         size={cellHeight * 2}
+        bombFontFamily={settings.bomb_font_family}
+        bombFontSizePx={settings.bomb_font_size_px}
       />
       <div className="flex gap-3">
         <SlotReel
