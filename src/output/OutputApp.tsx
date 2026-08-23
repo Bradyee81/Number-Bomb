@@ -118,7 +118,7 @@ export function OutputApp() {
             : "/media/center-icon-default.png"
         }
         revealedBomb={revealedBomb}
-        size={cellHeight}
+        size={cellHeight * 2}
       />
       <div className="flex gap-3">
         <SlotReel
