@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { SlotReel } from "../components/SlotReel";
 import { useBoundReels } from "./useBoundReels";
 import { onEvent } from "../lib/events";
@@ -31,22 +31,31 @@ export function OutputApp() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const { statuses, digits, setLow, setHigh, resetTo, markLanded } = useBoundReels();
   const cellHeight = useReelCellHeight();
+  const prevBoundsRef = useRef<{ low: number; high: number }>({ low: 1, high: 99 });
 
   useEffect(() => {
     loadSettings().then(setSettings);
     const unlistens = [
       onEvent("config:updated", setSettings),
-      onEvent("bomb:round-start", ({ low, high }) => resetTo(low, high)),
+      onEvent("bomb:round-start", ({ low, high }) => {
+        prevBoundsRef.current = { low, high };
+        resetTo(low, high);
+      }),
       onEvent("bomb:call", ({ low, high, exploded }) => {
-        setLow(low);
-        setHigh(high);
+        if (low !== prevBoundsRef.current.low) setLow(low);
+        if (high !== prevBoundsRef.current.high) setHigh(high);
+        prevBoundsRef.current = { low, high };
         void exploded; // explosion overlay wiring lands in Task 9
       }),
       onEvent("bomb:undo", ({ low, high }) => {
-        setLow(low);
-        setHigh(high);
+        if (low !== prevBoundsRef.current.low) setLow(low);
+        if (high !== prevBoundsRef.current.high) setHigh(high);
+        prevBoundsRef.current = { low, high };
       }),
-      onEvent("bomb:round-end", () => resetTo(1, 99)),
+      onEvent("bomb:round-end", () => {
+        prevBoundsRef.current = { low: 1, high: 99 };
+        resetTo(1, 99);
+      }),
     ];
     return () => {
       unlistens.forEach((p) => p.then((fn) => fn()));
