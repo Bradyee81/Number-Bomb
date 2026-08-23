@@ -34,7 +34,12 @@ export function OutputApp() {
   const { statuses, digits, setLow, setHigh, resetTo, markLanded } = useBoundReels();
   const cellHeight = useReelCellHeight();
   const prevBoundsRef = useRef<{ low: number; high: number }>({ low: 1, high: 99 });
+  const settingsRef = useRef<Settings>(settings);
   const [exploding, setExploding] = useState(false);
+
+  useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
 
   useEffect(() => {
     loadSettings().then(setSettings);
@@ -48,7 +53,7 @@ export function OutputApp() {
         if (low !== prevBoundsRef.current.low) setLow(low);
         if (high !== prevBoundsRef.current.high) setHigh(high);
         prevBoundsRef.current = { low, high };
-        playVoiceover(n, settings.voiceover_volume);
+        playVoiceover(n, settingsRef.current.voiceover_volume);
         if (exploded) setExploding(true);
       }),
       onEvent("bomb:undo", ({ low, high, exploded }) => {
