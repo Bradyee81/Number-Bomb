@@ -34,6 +34,44 @@ export function SettingsScreen() {
     }
   };
 
+  const pickCenterVideo = async () => {
+    const selected = await open({
+      multiple: false,
+      filters: [{ name: "Video", extensions: ["mp4"] }],
+    });
+    if (!selected || Array.isArray(selected)) return;
+    setBusy(true);
+    try {
+      await mkdir("media", { baseDir: BaseDirectory.AppData, recursive: true });
+      const fileName = selected.split(/[\\/]/).pop() ?? "center-video.mp4";
+      const destRelative = `media/${fileName}`;
+      await copyFile(selected, destRelative, { toPathBaseDir: BaseDirectory.AppData });
+      const absolutePath = await join(await appDataDir(), destRelative);
+      await updateSettings({ center_video_path: absolutePath });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const pickCenterIcon = async () => {
+    const selected = await open({
+      multiple: false,
+      filters: [{ name: "Image", extensions: ["png", "jpg", "jpeg", "svg"] }],
+    });
+    if (!selected || Array.isArray(selected)) return;
+    setBusy(true);
+    try {
+      await mkdir("media", { baseDir: BaseDirectory.AppData, recursive: true });
+      const fileName = selected.split(/[\\/]/).pop() ?? "center-icon.png";
+      const destRelative = `media/${fileName}`;
+      await copyFile(selected, destRelative, { toPathBaseDir: BaseDirectory.AppData });
+      const absolutePath = await join(await appDataDir(), destRelative);
+      await updateSettings({ center_icon_path: absolutePath });
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-2xl p-8">
       <h1 className="mb-1 text-xl font-bold">Settings</h1>
@@ -69,6 +107,34 @@ export function SettingsScreen() {
         </p>
         <button
           onClick={pickVideo}
+          disabled={busy}
+          className="rounded-md bg-[#F5C518] px-3 py-1.5 font-semibold text-[#10141F] disabled:opacity-40"
+        >
+          {busy ? "Copying…" : "Browse…"}
+        </button>
+      </section>
+
+      <section className="mb-8">
+        <label className="mb-2 block font-semibold">Center loop video</label>
+        <p className="mb-2 text-xs text-white/40">
+          {settings.center_video_path || "None set — fallback icon shown instead"}
+        </p>
+        <button
+          onClick={pickCenterVideo}
+          disabled={busy}
+          className="rounded-md bg-[#F5C518] px-3 py-1.5 font-semibold text-[#10141F] disabled:opacity-40"
+        >
+          {busy ? "Copying…" : "Browse…"}
+        </button>
+      </section>
+
+      <section className="mb-8">
+        <label className="mb-2 block font-semibold">Center fallback icon</label>
+        <p className="mb-2 text-xs text-white/40">
+          {settings.center_icon_path || "Using bundled default"}
+        </p>
+        <button
+          onClick={pickCenterIcon}
           disabled={busy}
           className="rounded-md bg-[#F5C518] px-3 py-1.5 font-semibold text-[#10141F] disabled:opacity-40"
         >

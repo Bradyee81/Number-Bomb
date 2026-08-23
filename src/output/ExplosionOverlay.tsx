@@ -5,9 +5,16 @@ interface ExplosionOverlayProps {
   onDone: () => void;
 }
 
+const HARD_TIMEOUT_MS = 15000;
+
 export function ExplosionOverlay({ videoSrc, onDone }: ExplosionOverlayProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [fallback, setFallback] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(onDone, HARD_TIMEOUT_MS);
+    return () => clearTimeout(t);
+  }, [onDone]);
 
   useEffect(() => {
     const el = videoRef.current;
@@ -40,6 +47,7 @@ export function ExplosionOverlay({ videoSrc, onDone }: ExplosionOverlayProps) {
       ref={videoRef}
       src={videoSrc}
       autoPlay
+      muted
       className="pointer-events-none fixed inset-0 z-40 h-full w-full object-cover"
     />
   );

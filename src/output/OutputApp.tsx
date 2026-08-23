@@ -5,6 +5,7 @@ import { useBoundReels } from "./useBoundReels";
 import { onEvent } from "../lib/events";
 import { loadSettings } from "../lib/settings";
 import { ExplosionOverlay } from "./ExplosionOverlay";
+import { CenterDisplay } from "./CenterDisplay";
 import { playVoiceover } from "../lib/audio";
 import {
   DEFAULT_DIGIT_STRIP,
@@ -37,6 +38,7 @@ export function OutputApp() {
   const prevBoundsRef = useRef<{ low: number; high: number }>({ low: 1, high: 99 });
   const settingsRef = useRef<Settings>(settings);
   const [exploding, setExploding] = useState(false);
+  const [revealedBomb, setRevealedBomb] = useState<number | null>(null);
   const handleExplosionDone = useCallback(() => setExploding(false), []);
 
   useEffect(() => {
@@ -50,23 +52,33 @@ export function OutputApp() {
       onEvent("bomb:round-start", ({ low, high }) => {
         prevBoundsRef.current = { low, high };
         resetTo(low, high);
+        setExploding(false);
+        setRevealedBomb(null);
       }),
       onEvent("bomb:call", ({ n, low, high, exploded }) => {
         if (low !== prevBoundsRef.current.low) setLow(low);
         if (high !== prevBoundsRef.current.high) setHigh(high);
         prevBoundsRef.current = { low, high };
         playVoiceover(n, settingsRef.current.voiceover_volume);
-        if (exploded) setExploding(true);
+        if (exploded) {
+          setExploding(true);
+          setRevealedBomb(n);
+        }
       }),
       onEvent("bomb:undo", ({ low, high, exploded }) => {
         if (low !== prevBoundsRef.current.low) setLow(low);
         if (high !== prevBoundsRef.current.high) setHigh(high);
         prevBoundsRef.current = { low, high };
-        if (!exploded) setExploding(false);
+        if (!exploded) {
+          setExploding(false);
+          setRevealedBomb(null);
+        }
       }),
       onEvent("bomb:round-end", () => {
         prevBoundsRef.current = { low: 1, high: 99 };
         resetTo(1, 99);
+        setExploding(false);
+        setRevealedBomb(null);
       }),
     ];
     return () => {
@@ -98,6 +110,16 @@ export function OutputApp() {
           onLanded={() => markLanded("lowUnits")}
         />
       </div>
+      <CenterDisplay
+        centerVideoSrc={settings.center_video_path ? convertFileSrc(settings.center_video_path) : ""}
+        centerIconSrc={
+          settings.center_icon_path
+            ? convertFileSrc(settings.center_icon_path)
+            : "/media/center-icon-default.png"
+        }
+        revealedBomb={revealedBomb}
+        size={cellHeight}
+      />
       <div className="flex gap-3">
         <SlotReel
           stripUrl={stripUrl}

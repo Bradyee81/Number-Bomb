@@ -35,7 +35,12 @@ export function RoundProvider({ children }: { children: ReactNode }) {
       if (!state.current || state.current.status !== "active") return;
       const { state: next, exploded } = callNumber(state.current, n);
       dispatch({ type: "call", n });
-      void emitEvent("bomb:call", { n, low: next.low, high: next.high, exploded });
+      void emitEvent("bomb:call", {
+        n,
+        low: exploded ? n : next.low,
+        high: exploded ? n : next.high,
+        exploded,
+      });
     },
     [state.current]
   );

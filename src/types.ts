@@ -18,12 +18,16 @@ export interface Settings {
   chroma_color: string;
   explosion_video_path: string;
   voiceover_volume: number;
+  center_video_path: string;
+  center_icon_path: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   chroma_color: CHROMA_PRESETS[0].hex,
   explosion_video_path: "",
   voiceover_volume: 1,
+  center_video_path: "",
+  center_icon_path: "",
 };
 
 export const DEFAULT_DIGIT_STRIP = "/assets/digit-strip-default.svg";

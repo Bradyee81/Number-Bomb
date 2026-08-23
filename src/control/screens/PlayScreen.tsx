@@ -4,16 +4,24 @@ import { useRound } from "../RoundContext";
 export function PlayScreen() {
   const { state, startRound, call, undo, endRound } = useRound();
   const [input, setInput] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [bombRevealed, setBombRevealed] = useState(false);
   const round = state.current;
   const canPlay = round?.status === "active";
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    const n = Number(input);
-    if (canPlay && Number.isInteger(n)) {
-      call(n);
-    }
+    const raw = input.trim();
     setInput("");
+    if (!raw || !canPlay || !round) return;
+    const n = Number(raw);
+    if (!Number.isInteger(n)) return;
+    if (n <= round.low || n >= round.high) {
+      setError(`Out of range — must be between ${round.low} and ${round.high}`);
+      return;
+    }
+    setError(null);
+    call(n);
   };
 
   return (
@@ -38,12 +46,30 @@ export function PlayScreen() {
           <div className="text-xs uppercase text-white/40">Status</div>
           <div className="text-lg font-semibold capitalize">{round?.status ?? "no round"}</div>
         </div>
+        <div>
+          <div className="text-xs uppercase text-white/40">Bomb</div>
+          <button
+            type="button"
+            onMouseDown={() => setBombRevealed(true)}
+            onMouseUp={() => setBombRevealed(false)}
+            onMouseLeave={() => setBombRevealed(false)}
+            onTouchStart={() => setBombRevealed(true)}
+            onTouchEnd={() => setBombRevealed(false)}
+            disabled={!round}
+            className="select-none text-2xl font-bold text-[#F5C518] disabled:opacity-40"
+          >
+            {round && bombRevealed ? String(round.bomb).padStart(2, "0") : "••"}
+          </button>
+        </div>
       </div>
 
       <form onSubmit={submit} className="mb-4 flex gap-3">
         <input
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={(e) => {
+            setInput(e.target.value);
+            if (error) setError(null);
+          }}
           disabled={!canPlay}
           inputMode="numeric"
           placeholder="Number called"
@@ -57,6 +83,8 @@ export function PlayScreen() {
           Enter
         </button>
       </form>
+
+      {error && <p className="mb-4 text-sm text-red-400">{error}</p>}
 
       <div className="flex gap-3">
         <button
