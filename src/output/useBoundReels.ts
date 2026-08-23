@@ -36,12 +36,13 @@ export function useBoundReels() {
   const animatePair = useCallback(
     (tensKey: ReelKey, unitsKey: ReelKey, value: number) => {
       const [tens, units] = toTensUnits(value);
-      setDigits((prev) => ({ ...prev, [tensKey]: tens, [unitsKey]: units }));
+      const targets: Partial<Record<ReelKey, number>> = { [tensKey]: tens, [unitsKey]: units };
 
       [tensKey, unitsKey].forEach((key, i) => {
         clearPending(key);
         const t = setTimeout(() => {
           timeoutsRef.current.delete(key);
+          setDigits((prev) => ({ ...prev, [key]: targets[key]! }));
           setStatuses((prev) => ({ ...prev, [key]: "landing" }));
         }, i * STAGGER_MS);
         timeoutsRef.current.set(key, t);
