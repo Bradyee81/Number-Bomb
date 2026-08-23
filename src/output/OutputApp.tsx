@@ -3,6 +3,8 @@ import { SlotReel } from "../components/SlotReel";
 import { useBoundReels } from "./useBoundReels";
 import { onEvent } from "../lib/events";
 import { loadSettings } from "../lib/settings";
+import { ExplosionOverlay } from "./ExplosionOverlay";
+import { playVoiceover } from "../lib/audio";
 import {
   DEFAULT_DIGIT_STRIP,
   DEFAULT_SETTINGS,
@@ -32,6 +34,7 @@ export function OutputApp() {
   const { statuses, digits, setLow, setHigh, resetTo, markLanded } = useBoundReels();
   const cellHeight = useReelCellHeight();
   const prevBoundsRef = useRef<{ low: number; high: number }>({ low: 1, high: 99 });
+  const [exploding, setExploding] = useState(false);
 
   useEffect(() => {
     loadSettings().then(setSettings);
@@ -41,16 +44,18 @@ export function OutputApp() {
         prevBoundsRef.current = { low, high };
         resetTo(low, high);
       }),
-      onEvent("bomb:call", ({ low, high, exploded }) => {
+      onEvent("bomb:call", ({ n, low, high, exploded }) => {
         if (low !== prevBoundsRef.current.low) setLow(low);
         if (high !== prevBoundsRef.current.high) setHigh(high);
         prevBoundsRef.current = { low, high };
-        void exploded; // explosion overlay wiring lands in Task 9
+        playVoiceover(n, settings.voiceover_volume);
+        if (exploded) setExploding(true);
       }),
-      onEvent("bomb:undo", ({ low, high }) => {
+      onEvent("bomb:undo", ({ low, high, exploded }) => {
         if (low !== prevBoundsRef.current.low) setLow(low);
         if (high !== prevBoundsRef.current.high) setHigh(high);
         prevBoundsRef.current = { low, high };
+        if (!exploded) setExploding(false);
       }),
       onEvent("bomb:round-end", () => {
         prevBoundsRef.current = { low: 1, high: 99 };
@@ -102,6 +107,12 @@ export function OutputApp() {
           onLanded={() => markLanded("highUnits")}
         />
       </div>
+      {exploding && (
+        <ExplosionOverlay
+          videoSrc={settings.explosion_video_path || "/media/explosion-default.mp4"}
+          onDone={() => setExploding(false)}
+        />
+      )}
     </div>
   );
 }
