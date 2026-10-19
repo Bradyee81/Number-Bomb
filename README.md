@@ -25,8 +25,8 @@ Windows builds are published on the [Releases page](https://github.com/Bradyee81
   the reveal, with an automatic red-flash fallback if no video is set.
 - **Center display** — a looping video (or a fallback icon) that turns into
   the actual bomb number when it's revealed.
-- **Voiceover** playback per called number (bring your own `01.mp3`…`99.mp3`
-  clips — not bundled).
+- **Cantonese voiceover** for every called number (01–99), bundled with the
+  app and regenerable with a different voice (see Development).
 - **Configurable chroma key color**, explosion clip, center video/icon, reel
   digit-strip image, and bomb-reveal font — all swappable from the Settings
   screen, no rebuild required.
@@ -60,6 +60,21 @@ npm run tauri dev    # run in development
 npm test              # run the game-logic unit tests
 npm run tauri build   # produce a production build for your current platform
 ```
+
+### Voiceover clips
+
+The Cantonese number clips in `public/audio/01.mp3`…`99.mp3` are generated
+with Microsoft neural TTS via [edge-tts](https://github.com/rany2/edge-tts).
+To regenerate them (needs [uv](https://docs.astral.sh/uv/) and an internet
+connection):
+
+```bash
+npm run voiceover                                   # default male voice (WanLung)
+npm run voiceover -- --voice zh-HK-HiuGaaiNeural    # or HiuMaanNeural; female voices
+npm run voiceover -- --rate +15% --only 42          # tweak speed / redo one clip
+```
+
+Or replace any file with your own recording of the same name and rebuild.
 
 Windows builds are produced by CI (`.github/workflows/release.yml`) on a
 `v*` tag push — building a Windows installer on Linux/macOS requires a
