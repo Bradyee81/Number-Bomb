@@ -21,11 +21,24 @@ export interface RoundUndoPayload {
 
 export type RoundEndPayload = Record<string, never>;
 
+/** Operator shows (number) or hides (null) the bomb on the Output screen. */
+export interface BombRevealPayload {
+  bomb: number | null;
+}
+
+/** Operator shows (number) or hides (null) the bomb on the Output screen. */
+export interface BombRevealPayload {
+  bomb: number | null;
+}
+
 export type NumberBombEvents = {
   "bomb:round-start": RoundStartPayload;
   "bomb:call": RoundCallPayload;
   "bomb:undo": RoundUndoPayload;
   "bomb:round-end": RoundEndPayload;
+  "bomb:reveal": BombRevealPayload;
+  /** Briefly shows a sample bomb number so the font/size can be checked on screen. */
+  "display:preview-font": Record<string, never>;
   "config:updated": Settings;
 };
 

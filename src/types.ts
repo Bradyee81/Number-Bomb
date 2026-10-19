@@ -29,6 +29,19 @@ export const FONT_PRESETS: FontPreset[] = [
 
 export const CUSTOM_FONT_FAMILY_NAME = "NumberBombCustomFont";
 
+// Bundled voice packs in public/audio/<id>/ — keep in sync with
+// LANGUAGES in scripts/generate-voiceover.mjs.
+export const VOICE_LANGUAGES = [
+  { id: "yue", name: "Cantonese 粵語" },
+  { id: "cmn", name: "Mandarin 普通话" },
+  { id: "en", name: "English" },
+] as const;
+
+export type VoiceLanguage = (typeof VOICE_LANGUAGES)[number]["id"];
+
+export const DEFAULT_HIT_SFX = "/sfx/boom.wav";
+export const DEFAULT_CALL_SFX = "/sfx/ding.wav";
+
 export interface Settings {
   chroma_color: string;
   explosion_video_path: string;
@@ -39,6 +52,32 @@ export interface Settings {
   bomb_font_family: string;
   bomb_font_size_px: number;
   custom_font_path: string;
+  explosion_enabled: boolean;
+  voice_language: VoiceLanguage;
+  /** Voiceover playback rate, pitch preserved. */
+  voice_speed: number;
+  /** Multiplier on the reel/center size, relative to a 1920×1080 layout. */
+  output_scale: number;
+  sfx_volume: number;
+  hit_sfx_enabled: boolean;
+  hit_sfx_path: string;
+  call_sfx_enabled: boolean;
+  call_sfx_path: string;
+  /** On a bomb hit, read out the bomb number. */
+  hit_number_enabled: boolean;
+  /** On a bomb hit, play the hit line ("哈哈哈，你开口中" or a custom upload). */
+  hit_line_enabled: boolean;
+  hit_line_path: string;
+  /** Image or video shown behind the reels instead of the plain chroma color. */
+  background_path: string;
+  /** OS name of the display the Output window presents on ("" = auto). */
+  output_screen: string;
+}
+
+export const VIDEO_EXTENSIONS = ["mp4", "webm"];
+
+export function isVideoPath(path: string): boolean {
+  return VIDEO_EXTENSIONS.includes(path.split(".").pop()?.toLowerCase() ?? "");
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -51,6 +90,20 @@ export const DEFAULT_SETTINGS: Settings = {
   bomb_font_family: FONT_PRESETS[0].family,
   bomb_font_size_px: 260,
   custom_font_path: "",
+  explosion_enabled: true,
+  voice_language: "yue",
+  voice_speed: 0.9,
+  output_scale: 1,
+  sfx_volume: 0.8,
+  hit_sfx_enabled: true,
+  hit_sfx_path: "",
+  call_sfx_enabled: true,
+  call_sfx_path: "",
+  hit_number_enabled: true,
+  hit_line_enabled: true,
+  hit_line_path: "",
+  background_path: "",
+  output_screen: "",
 };
 
 export const DEFAULT_DIGIT_STRIP = "/assets/digit-strip-default.svg";

@@ -1,15 +1,23 @@
 import { useState } from "react";
 import { RoundProvider } from "./RoundContext";
-import { SettingsProvider } from "./SettingsContext";
+import { SettingsProvider, useSettings } from "./SettingsContext";
 import { PlayScreen } from "./screens/PlayScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
-import { usePresentToggle } from "../lib/presentWindow";
+import { pickScreen, usePresentToggle, useScreens } from "../lib/presentWindow";
 
 type Screen = "play" | "settings";
 
 function Shell() {
   const [screen, setScreen] = useState<Screen>("play");
-  const { presenting, toggle } = usePresentToggle();
+  const { presenting, toggle, moveTo } = usePresentToggle();
+  const { screens, refresh } = useScreens();
+  const { settings, updateSettings } = useSettings();
+  const selected = pickScreen(screens, settings?.output_screen ?? "");
+
+  const chooseScreen = (name: string) => {
+    void updateSettings({ output_screen: name });
+    void moveTo(screens.find((s) => s.name === name));
+  };
 
   return (
     <div className="flex h-screen w-screen text-sm">
@@ -30,9 +38,22 @@ function Shell() {
             {id}
           </button>
         ))}
-        <div className="mt-auto pt-3">
+        <div className="mt-auto flex flex-col gap-2 pt-3">
+          <label className="px-1 text-xs uppercase text-white/40">Output screen</label>
+          <select
+            value={selected?.name ?? ""}
+            onFocus={() => void refresh()}
+            onChange={(e) => chooseScreen(e.target.value)}
+            className="w-full rounded-md border border-white/15 bg-[#10141F] px-2 py-1.5 text-white/80"
+          >
+            {screens.map((s) => (
+              <option key={s.name} value={s.name}>
+                {s.label}
+              </option>
+            ))}
+          </select>
           <button
-            onClick={toggle}
+            onClick={() => void toggle(selected)}
             className="w-full rounded-md border border-[#F5C518] px-3 py-2 font-semibold text-[#F5C518] hover:bg-[#F5C518]/10"
           >
             {presenting ? "Exit Present" : "Present"}

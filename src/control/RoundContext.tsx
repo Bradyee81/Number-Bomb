@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useReducer, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useReducer, useState, type ReactNode } from "react";
 import {
   callNumber,
   randomBomb,
@@ -16,17 +16,22 @@ interface RoundContextValue {
   call: (n: number) => void;
   undo: () => void;
   endRound: () => void;
+  /** Whether the bomb number is currently shown on the Output screen. */
+  bombShown: boolean;
+  toggleBombShown: () => void;
 }
 
 const RoundContext = createContext<RoundContextValue | null>(null);
 
 export function RoundProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(roundReducer, initialState);
+  const [bombShown, setBombShown] = useState(false);
 
   const startRound = useCallback(() => {
     const bomb = randomBomb();
     const next = computeStartRound(bomb);
     dispatch({ type: "start", bomb });
+    setBombShown(false);
     void emitEvent("bomb:round-start", { low: next.low, high: next.high });
   }, []);
 
@@ -41,6 +46,7 @@ export function RoundProvider({ children }: { children: ReactNode }) {
         high: exploded ? n : next.high,
         exploded,
       });
+      if (exploded) setBombShown(true);
     },
     [state.current]
   );
@@ -49,6 +55,7 @@ export function RoundProvider({ children }: { children: ReactNode }) {
     if (!state.undoSnapshot) return;
     const snapshot = state.undoSnapshot;
     dispatch({ type: "undo" });
+    setBombShown(false);
     void emitEvent("bomb:undo", {
       low: snapshot.low,
       high: snapshot.high,
@@ -59,11 +66,19 @@ export function RoundProvider({ children }: { children: ReactNode }) {
   const endRound = useCallback(() => {
     if (!state.current) return;
     dispatch({ type: "end" });
+    setBombShown(false);
     void emitEvent("bomb:round-end", {});
   }, [state.current]);
 
+  const toggleBombShown = useCallback(() => {
+    if (!state.current) return;
+    const show = !bombShown;
+    setBombShown(show);
+    void emitEvent("bomb:reveal", { bomb: show ? state.current.bomb : null });
+  }, [state.current, bombShown]);
+
   return (
-    <RoundContext.Provider value={{ state, startRound, call, undo, endRound }}>
+    <RoundContext.Provider value={{ state, startRound, call, undo, endRound, bombShown, toggleBombShown }}>
       {children}
     </RoundContext.Provider>
   );

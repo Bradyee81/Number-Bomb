@@ -6,19 +6,21 @@ import { onEvent } from "../lib/events";
 import { loadSettings } from "../lib/settings";
 import { ExplosionOverlay } from "./ExplosionOverlay";
 import { CenterDisplay } from "./CenterDisplay";
-import { playBombHit, playRangeAnnouncement } from "../lib/audio";
+import { playBombHit, playCallAnnouncement } from "../lib/audio";
 import {
   CUSTOM_FONT_FAMILY_NAME,
   DEFAULT_DIGIT_STRIP,
   DEFAULT_SETTINGS,
-  DIGIT_CELL_HEIGHT,
-  DIGIT_CELL_WIDTH,
+  isVideoPath,
   type Settings,
 } from "../types";
 
-const CELL_RATIO = DIGIT_CELL_WIDTH / DIGIT_CELL_HEIGHT;
+// Reel size at a 1920×1080 output with output_scale = 1.
+const BASE_CELL_HEIGHT = 260;
+const FONT_PREVIEW_MS = 3000;
 
-function useReelCellHeight() {
+/** Scales the 1920×1080 layout to the window, so it looks the same at any resolution. */
+function useViewportScale() {
   const [size, setSize] = useState({ w: window.innerWidth, h: window.innerHeight });
 
   useEffect(() => {
@@ -27,19 +29,20 @@ function useReelCellHeight() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  const byHeight = size.h * 0.42;
-  const byWidth = (size.w * 0.8) / 4 / CELL_RATIO;
-  return Math.max(70, Math.min(byHeight, byWidth, 260));
+  return Math.min(size.w / 1920, size.h / 1080);
 }
 
 export function OutputApp() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const { statuses, digits, setLow, setHigh, resetTo, markLanded } = useBoundReels();
-  const cellHeight = useReelCellHeight();
+  const viewportScale = useViewportScale();
+  const scale = viewportScale * settings.output_scale;
+  const cellHeight = Math.max(40, BASE_CELL_HEIGHT * scale);
   const prevBoundsRef = useRef<{ low: number; high: number }>({ low: 1, high: 99 });
   const settingsRef = useRef<Settings>(settings);
   const [exploding, setExploding] = useState(false);
   const [revealedBomb, setRevealedBomb] = useState<number | null>(null);
+  const [fontPreview, setFontPreview] = useState(false);
   const handleExplosionDone = useCallback(() => setExploding(false), []);
 
   useEffect(() => {
@@ -68,6 +71,7 @@ export function OutputApp() {
 
   useEffect(() => {
     loadSettings().then(setSettings);
+    let previewTimer: ReturnType<typeof setTimeout> | undefined;
     const unlistens = [
       onEvent("config:updated", setSettings),
       onEvent("bomb:round-start", ({ low, high }) => {
@@ -80,12 +84,12 @@ export function OutputApp() {
         if (low !== prevBoundsRef.current.low) setLow(low);
         if (high !== prevBoundsRef.current.high) setHigh(high);
         prevBoundsRef.current = { low, high };
-        const volume = settingsRef.current.voiceover_volume;
-        if (exploded) playBombHit(n, volume);
-        else playRangeAnnouncement(low, high, volume);
         if (exploded) {
-          setExploding(true);
+          playBombHit(n, settingsRef.current);
+          setExploding(settingsRef.current.explosion_enabled);
           setRevealedBomb(n);
+        } else {
+          playCallAnnouncement(low, high, settingsRef.current);
         }
       }),
       onEvent("bomb:undo", ({ low, high, exploded }) => {
@@ -97,6 +101,12 @@ export function OutputApp() {
           setRevealedBomb(null);
         }
       }),
+      onEvent("bomb:reveal", ({ bomb }) => setRevealedBomb(bomb)),
+      onEvent("display:preview-font", () => {
+        setFontPreview(true);
+        clearTimeout(previewTimer);
+        previewTimer = setTimeout(() => setFontPreview(false), FONT_PREVIEW_MS);
+      }),
       onEvent("bomb:round-end", () => {
         prevBoundsRef.current = { low: 1, high: 99 };
         resetTo(1, 99);
@@ -105,6 +115,7 @@ export function OutputApp() {
       }),
     ];
     return () => {
+      clearTimeout(previewTimer);
       unlistens.forEach((p) => p.then((fn) => fn()));
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -116,9 +127,26 @@ export function OutputApp() {
 
   return (
     <div
-      className="flex h-screen w-screen items-center justify-center gap-10 overflow-hidden"
+      className="relative isolate flex h-screen w-screen items-center justify-center gap-10 overflow-hidden"
       style={{ backgroundColor: settings.chroma_color }}
     >
+      {settings.background_path &&
+        (isVideoPath(settings.background_path) ? (
+          // eslint-disable-next-line jsx-a11y/media-has-caption
+          <video
+            src={convertFileSrc(settings.background_path)}
+            autoPlay
+            loop
+            muted
+            className="absolute inset-0 -z-10 h-full w-full object-cover"
+          />
+        ) : (
+          <img
+            src={convertFileSrc(settings.background_path)}
+            alt=""
+            className="absolute inset-0 -z-10 h-full w-full object-cover"
+          />
+        ))}
       <div className="flex gap-3">
         <SlotReel
           stripUrl={stripUrl}
@@ -142,10 +170,10 @@ export function OutputApp() {
             ? convertFileSrc(settings.center_icon_path)
             : "/media/center-icon-default.png"
         }
-        revealedBomb={revealedBomb}
+        revealedBomb={revealedBomb ?? (fontPreview ? 88 : null)}
         size={cellHeight * 2}
         bombFontFamily={settings.bomb_font_family}
-        bombFontSizePx={settings.bomb_font_size_px}
+        bombFontSizePx={settings.bomb_font_size_px * scale}
       />
       <div className="flex gap-3">
         <SlotReel

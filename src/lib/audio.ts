@@ -1,97 +1,132 @@
-// Voiceover clips live in /audio: 01.mp3…99.mp3 plus to.mp3 ("至")
-// and hit.mp3 ("哈哈哈，你开口中").
-// Announcements are stitched from several clips, so each clip's TTS silence
-// padding is trimmed off and the pieces are scheduled back-to-back.
+import { convertFileSrc } from "@tauri-apps/api/core";
+import { DEFAULT_CALL_SFX, DEFAULT_HIT_SFX, type Settings } from "../types";
 
-const SILENCE_THRESHOLD = 0.01;
-const EDGE_PAD_SEC = 0.03;
-const GAP_SEC = 0.06;
+// Voice packs live in /audio/<lang>/: 01.mp3…99.mp3, to.mp3 ("至" / "to") and
+// hit.mp3 (e.g. "哈哈哈，你开口中"). The clips are pre-trimmed of silence by
+// scripts/generate-voiceover.mjs, so announcements are just played back-to-back.
+// HTMLAudioElement is used (not Web Audio) so speed changes keep the pitch.
 
-let ctx: AudioContext | null = null;
-const buffers = new Map<string, Promise<AudioBuffer>>();
-let playing: AudioBufferSourceNode[] = [];
+interface Step {
+  src: string;
+  volume: number;
+  rate: number;
+  /** Start the next step after this many seconds even if this one is still playing. */
+  overlapAfterSec?: number;
+}
+
 let playToken = 0;
+let playing: HTMLAudioElement[] = [];
 
-function getContext(): AudioContext {
-  if (!ctx) ctx = new AudioContext();
-  return ctx;
+function clamp01(v: number): number {
+  return Math.max(0, Math.min(1, v));
 }
 
-function clipName(n: number): string {
-  return String(n).padStart(2, "0");
+function voiceClip(settings: Settings, name: string): Step {
+  return {
+    src: `/audio/${settings.voice_language}/${name}.mp3`,
+    volume: clamp01(settings.voiceover_volume),
+    rate: settings.voice_speed,
+  };
 }
 
-function trimSilence(ac: AudioContext, buf: AudioBuffer): AudioBuffer {
-  const data = buf.getChannelData(0);
-  let start = 0;
-  let end = data.length - 1;
-  while (start < end && Math.abs(data[start]) < SILENCE_THRESHOLD) start++;
-  while (end > start && Math.abs(data[end]) < SILENCE_THRESHOLD) end--;
-  const pad = Math.floor(EDGE_PAD_SEC * buf.sampleRate);
-  start = Math.max(0, start - pad);
-  end = Math.min(data.length - 1, end + pad);
-
-  const out = ac.createBuffer(buf.numberOfChannels, end - start + 1, buf.sampleRate);
-  for (let ch = 0; ch < buf.numberOfChannels; ch++) {
-    out.copyToChannel(buf.getChannelData(ch).subarray(start, end + 1), ch);
-  }
-  return out;
+function numberClip(settings: Settings, n: number): Step {
+  return voiceClip(settings, String(n).padStart(2, "0"));
 }
 
-function loadClip(name: string): Promise<AudioBuffer> {
-  let p = buffers.get(name);
-  if (!p) {
-    const ac = getContext();
-    p = fetch(`/audio/${name}.mp3`)
-      .then((r) => {
-        if (!r.ok) throw new Error(`missing clip ${name}`);
-        return r.arrayBuffer();
-      })
-      .then((data) => ac.decodeAudioData(data))
-      .then((buf) => trimSilence(ac, buf));
-    // Don't cache failures, so a clip dropped in later can still load.
-    p.catch(() => buffers.delete(name));
-    buffers.set(name, p);
-  }
-  return p;
+function sfxSrc(customPath: string, fallback: string): string {
+  return customPath ? convertFileSrc(customPath) : fallback;
 }
 
-async function playSequence(names: string[], volume: number): Promise<void> {
+function stopAll(): void {
+  playing.forEach((a) => a.pause());
+  playing = [];
+}
+
+function playSequence(steps: Step[]): void {
   const token = ++playToken;
-  const ac = getContext();
-  const clips = await Promise.all(names.map(loadClip));
-  if (token !== playToken) return; // a newer call superseded this one
-  if (ac.state === "suspended") await ac.resume();
+  stopAll();
 
-  playing.forEach((s) => s.stop());
-  const gain = ac.createGain();
-  gain.gain.value = Math.max(0, Math.min(1, volume));
-  gain.connect(ac.destination);
-
-  let at = ac.currentTime + 0.02;
-  playing = clips.map((buf) => {
-    const src = ac.createBufferSource();
-    src.buffer = buf;
-    src.connect(gain);
-    src.start(at);
-    at += buf.duration + GAP_SEC;
-    return src;
+  // Create (and start loading) every clip up front so there's no fetch gap between them.
+  const els = steps.map((step) => {
+    const a = new Audio(step.src);
+    a.preload = "auto";
+    a.volume = step.volume;
+    a.playbackRate = step.rate;
+    a.preservesPitch = true;
+    return a;
   });
+  playing = els;
+
+  const playAt = (i: number) => {
+    if (token !== playToken || i >= els.length) return;
+    const el = els[i];
+    let advanced = false;
+    const next = () => {
+      if (advanced) return;
+      advanced = true;
+      playAt(i + 1);
+    };
+    el.addEventListener("ended", next, { once: true });
+    el.addEventListener("error", next, { once: true });
+    const overlap = steps[i].overlapAfterSec;
+    if (overlap !== undefined) setTimeout(next, overlap * 1000);
+    el.play().catch(next); // missing clip or autoplay blocked — skip, never block the game
+  };
+  playAt(0);
 }
 
-function playSafely(names: string[], volume: number): void {
-  playSequence(names, volume).catch(() => {
-    // Autoplay blocked or a clip missing — voiceover is non-blocking,
-    // same posture as the explosion video fallback.
-  });
+/** After a safe call: optional chime, then the new range, e.g. "十二 至 九十九". */
+export function playCallAnnouncement(low: number, high: number, settings: Settings): void {
+  const steps: Step[] = [];
+  if (settings.call_sfx_enabled) {
+    steps.push({
+      src: sfxSrc(settings.call_sfx_path, DEFAULT_CALL_SFX),
+      volume: clamp01(settings.sfx_volume),
+      rate: 1,
+      overlapAfterSec: 0.35,
+    });
+  }
+  steps.push(numberClip(settings, low), voiceClip(settings, "to"), numberClip(settings, high));
+  playSequence(steps);
 }
 
-/** Reads the bomb number on a hit, then "哈哈哈，你开口中". */
-export function playBombHit(n: number, volume: number): void {
-  playSafely([clipName(n), "hit"], volume);
+/** On a bomb hit: optional bomb sound, then the bomb number and the hit line. */
+export function playBombHit(n: number, settings: Settings): void {
+  const steps: Step[] = [];
+  if (settings.hit_sfx_enabled) {
+    steps.push({
+      src: sfxSrc(settings.hit_sfx_path, DEFAULT_HIT_SFX),
+      volume: clamp01(settings.sfx_volume),
+      rate: 1,
+      overlapAfterSec: 0.8,
+    });
+  }
+  if (settings.hit_number_enabled) steps.push(numberClip(settings, n));
+  if (settings.hit_line_enabled) {
+    steps.push(
+      settings.hit_line_path
+        ? { src: convertFileSrc(settings.hit_line_path), volume: clamp01(settings.voiceover_volume), rate: 1 }
+        : voiceClip(settings, "hit"),
+    );
+  }
+  playSequence(steps);
 }
 
-/** Reads the new range after a call, e.g. "十二 至 九十九". */
-export function playRangeAnnouncement(low: number, high: number, volume: number): void {
-  playSafely([clipName(low), "to", clipName(high)], volume);
+/** Settings-screen preview of a sound effect. */
+export function previewSfx(kind: "hit" | "call", settings: Settings): void {
+  const src =
+    kind === "hit"
+      ? sfxSrc(settings.hit_sfx_path, DEFAULT_HIT_SFX)
+      : sfxSrc(settings.call_sfx_path, DEFAULT_CALL_SFX);
+  playSequence([{ src, volume: clamp01(settings.sfx_volume), rate: 1 }]);
+}
+
+/** Settings-screen preview of the bomb-hit announcement. */
+export function previewHit(settings: Settings): void {
+  playBombHit(42, settings);
+}
+
+/** Settings-screen preview of the voice, e.g. "十二 至 九十九". */
+export function previewVoice(settings: Settings): void {
+  playSequence([numberClip(settings, 12), voiceClip(settings, "to"), numberClip(settings, 99)]);
 }

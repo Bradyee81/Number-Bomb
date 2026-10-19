@@ -18,22 +18,30 @@ Windows builds are published on the [Releases page](https://github.com/Bradyee81
 
 - **Two-window setup:** a `Control` window for the operator (kept on your
   primary monitor) and an `Output` window for the video switcher's capture
-  source, toggled fullscreen with one button.
+  source. Pick which screen it presents on from the sidebar; **Present** goes
+  fullscreen there and **Exit Present** closes it.
 - **Slot-machine style reels** for the current low/high bounds, with a
   landing animation on every call.
 - **Explosion overlay** on a bomb hit — a swappable video clip layered over
-  the reveal, with an automatic red-flash fallback if no video is set.
+  the reveal, with a red-flash fallback. Can be switched off so the bomb
+  number just appears.
 - **Center display** — a looping video (or a fallback icon) that turns into
   the actual bomb number when it's revealed.
-- **Cantonese voiceover** for every called number (01–99), bundled with the
-  app and regenerable with a different voice (see Development).
-- **Configurable chroma key color**, explosion clip, center video/icon, reel
-  digit-strip image, and bomb-reveal font — all swappable from the Settings
-  screen, no rebuild required.
+- **Range voiceover** after every call (e.g. "十二 至 九十九") in Cantonese,
+  Mandarin or English, with adjustable speed and volume. A bomb hit reads the
+  number plus a hit line (哈哈哈，你开口中), each switchable or replaceable with
+  your own recording.
+- **Sound effects:** a chime before each safe-call announcement and a boom on
+  a bomb hit — each switchable, with built-in defaults or your own upload.
+- **Configurable chroma key color** or a background image/video, explosion
+  clip, center video/icon, reel digit-strip image, bomb-reveal font and size,
+  and overall Output size — all from the Settings screen, no rebuild required.
 - **Single-level undo** for mis-entered calls, including reversing an
   explosion.
-- Out-of-range call validation and a press-and-hold bomb reveal for the
-  operator's own reference.
+- Out-of-range call validation. **Reveal Bomb** shows the bomb to the
+  operator only; **Show on Output** (after a confirmation) shows it to the
+  audience.
+- **Check for updates** and an admin-password **Factory reset** in Settings.
 
 ## Using it
 
@@ -63,15 +71,17 @@ npm run tauri build   # produce a production build for your current platform
 
 ### Voiceover clips
 
-The Cantonese number clips in `public/audio/01.mp3`…`99.mp3` are generated
-with Microsoft neural TTS via [edge-tts](https://github.com/rany2/edge-tts).
-To regenerate them (needs [uv](https://docs.astral.sh/uv/) and an internet
-connection):
+The voice packs in `public/audio/<lang>/` (`yue` Cantonese, `cmn` Mandarin,
+`en` English — `01.mp3`…`99.mp3`, `to.mp3` and `hit.mp3`) are generated with
+Microsoft neural TTS via [edge-tts](https://github.com/rany2/edge-tts) and
+silence-trimmed with ffmpeg. To regenerate them (needs
+[uv](https://docs.astral.sh/uv/) and an internet connection):
 
 ```bash
-npm run voiceover                                   # default male voice (WanLung)
-npm run voiceover -- --voice zh-HK-HiuGaaiNeural    # or HiuMaanNeural; female voices
-npm run voiceover -- --rate +15% --only 42          # tweak speed / redo one clip
+npm run voiceover                                       # all three packs
+npm run voiceover -- --lang yue --voice zh-HK-HiuGaaiNeural   # change one pack's voice
+npm run voiceover -- --lang en --only 42                # redo one clip
+npm run sfx                                             # regenerate default chime/boom
 ```
 
 Or replace any file with your own recording of the same name and rebuild.

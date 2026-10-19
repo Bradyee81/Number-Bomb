@@ -1,13 +1,23 @@
-import { useEffect, useState } from "react";
-import { Window } from "@tauri-apps/api/window";
+import { useCallback, useEffect, useState } from "react";
+import { availableMonitors, primaryMonitor, Window, type Monitor } from "@tauri-apps/api/window";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
 export interface PresentableWindow {
   isFullscreen(): Promise<boolean>;
   setFullscreen(fullscreen: boolean): Promise<void>;
+  setPosition(position: Monitor["position"]): Promise<void>;
   show(): Promise<void>;
+  hide(): Promise<void>;
   setFocus(): Promise<void>;
   listen(event: string, handler: () => void): Promise<() => void>;
+}
+
+export interface ScreenOption {
+  /** OS monitor name, used to remember the choice in settings. */
+  name: string;
+  label: string;
+  primary: boolean;
+  monitor: Monitor;
 }
 
 async function getOrCreateOutputWindow(): Promise<PresentableWindow> {
@@ -26,6 +36,50 @@ async function getOrCreateOutputWindow(): Promise<PresentableWindow> {
   return win;
 }
 
+/** Lists connected displays, refreshed whenever `refresh` is called (e.g. on dropdown focus). */
+export function useScreens() {
+  const [screens, setScreens] = useState<ScreenOption[]>([]);
+
+  const refresh = useCallback(async () => {
+    const [monitors, primary] = await Promise.all([availableMonitors(), primaryMonitor()]);
+    setScreens(
+      monitors.map((m, i) => {
+        const isPrimary = !!primary && m.name === primary.name;
+        return {
+          name: m.name ?? `screen-${i + 1}`,
+          label: `Screen ${i + 1} — ${m.size.width}×${m.size.height}${isPrimary ? " (main)" : ""}`,
+          primary: isPrimary,
+          monitor: m,
+        };
+      }),
+    );
+  }, []);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  return { screens, refresh };
+}
+
+/** The remembered screen if still connected, else the first non-main screen, else the main one. */
+export function pickScreen(screens: ScreenOption[], preferredName: string): ScreenOption | undefined {
+  return (
+    screens.find((s) => s.name === preferredName) ??
+    screens.find((s) => !s.primary) ??
+    screens[0]
+  );
+}
+
+async function presentOn(win: PresentableWindow, screen: ScreenOption | undefined) {
+  // Fullscreen applies to whichever monitor the window is on, so move it there first.
+  if (await win.isFullscreen().catch(() => false)) await win.setFullscreen(false);
+  if (screen) await win.setPosition(screen.monitor.position);
+  await win.show();
+  await win.setFullscreen(true);
+  await win.setFocus();
+}
+
 export function usePresentToggle() {
   const [presenting, setPresenting] = useState(false);
 
@@ -40,19 +94,24 @@ export function usePresentToggle() {
     return () => unlisten?.();
   }, []);
 
-  const toggle = async () => {
+  const toggle = async (screen: ScreenOption | undefined) => {
     const win = await getOrCreateOutputWindow();
-    const isFull = await win.isFullscreen().catch(() => false);
-    if (isFull) {
+    if (presenting) {
+      // Exit Present closes the Output screen; it stays alive hidden so Present reopens it instantly.
       await win.setFullscreen(false);
+      await win.hide();
       setPresenting(false);
     } else {
-      await win.show();
-      await win.setFullscreen(true);
-      await win.setFocus();
+      await presentOn(win, screen);
       setPresenting(true);
     }
   };
 
-  return { presenting, toggle };
+  /** Moves the Output window to another screen while presenting. */
+  const moveTo = async (screen: ScreenOption | undefined) => {
+    if (!presenting) return;
+    await presentOn(await getOrCreateOutputWindow(), screen);
+  };
+
+  return { presenting, toggle, moveTo };
 }
