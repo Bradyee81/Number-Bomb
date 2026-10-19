@@ -6,7 +6,7 @@ import { onEvent } from "../lib/events";
 import { loadSettings } from "../lib/settings";
 import { ExplosionOverlay } from "./ExplosionOverlay";
 import { CenterDisplay } from "./CenterDisplay";
-import { playRangeAnnouncement, playVoiceover } from "../lib/audio";
+import { playBombHit, playRangeAnnouncement } from "../lib/audio";
 import {
   CUSTOM_FONT_FAMILY_NAME,
   DEFAULT_DIGIT_STRIP,
@@ -81,7 +81,7 @@ export function OutputApp() {
         if (high !== prevBoundsRef.current.high) setHigh(high);
         prevBoundsRef.current = { low, high };
         const volume = settingsRef.current.voiceover_volume;
-        if (exploded) playVoiceover(n, volume);
+        if (exploded) playBombHit(n, volume);
         else playRangeAnnouncement(low, high, volume);
         if (exploded) {
           setExploding(true);

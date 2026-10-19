@@ -46,6 +46,8 @@ const clips = Array.from({ length: 99 }, (_, i) => ({
   text: toChinese(i + 1),
 }));
 clips.push({ name: "to", text: "至" });
+// Played after the bomb number on a hit.
+clips.push({ name: "hit", text: "哈哈哈，你开口中" });
 
 const selected = only ? clips.filter((c) => c.name === only.padStart(2, "0")) : clips;
 

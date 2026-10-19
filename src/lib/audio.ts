@@ -1,4 +1,5 @@
-// Voiceover clips live in /audio: 01.mp3…99.mp3 plus to.mp3 ("至").
+// Voiceover clips live in /audio: 01.mp3…99.mp3 plus to.mp3 ("至")
+// and hit.mp3 ("哈哈哈，你开口中").
 // Announcements are stitched from several clips, so each clip's TTS silence
 // padding is trimmed off and the pieces are scheduled back-to-back.
 
@@ -85,9 +86,9 @@ function playSafely(names: string[], volume: number): void {
   });
 }
 
-/** Reads a single number, e.g. the bomb number on a hit. */
-export function playVoiceover(n: number, volume: number): void {
-  playSafely([clipName(n)], volume);
+/** Reads the bomb number on a hit, then "哈哈哈，你开口中". */
+export function playBombHit(n: number, volume: number): void {
+  playSafely([clipName(n), "hit"], volume);
 }
 
 /** Reads the new range after a call, e.g. "十二 至 九十九". */
