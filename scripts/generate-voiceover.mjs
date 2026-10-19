@@ -39,17 +39,24 @@ const only = arg("only");
 const outDir = join(dirname(fileURLToPath(import.meta.url)), "..", "public", "audio");
 mkdirSync(outDir, { recursive: true });
 
-const numbers = only ? [Number(only)] : Array.from({ length: 99 }, (_, i) => i + 1);
+// Each called number is announced as the new range, e.g. "十二 至 九十九",
+// stitched at runtime from <low>.mp3 + to.mp3 + <high>.mp3 (see src/lib/audio.ts).
+const clips = Array.from({ length: 99 }, (_, i) => ({
+  name: String(i + 1).padStart(2, "0"),
+  text: toChinese(i + 1),
+}));
+clips.push({ name: "to", text: "至" });
 
-for (const n of numbers) {
-  const file = join(outDir, `${String(n).padStart(2, "0")}.mp3`);
-  const text = toChinese(n);
+const selected = only ? clips.filter((c) => c.name === only.padStart(2, "0")) : clips;
+
+for (const { name, text } of selected) {
+  const file = join(outDir, `${name}.mp3`);
   execFileSync(
     "uvx",
     ["edge-tts", "--voice", voice, `--rate=${rate}`, "--text", text, "--write-media", file],
     { stdio: ["ignore", "ignore", "inherit"] },
   );
-  console.log(`${String(n).padStart(2, "0")}  ${text}`);
+  console.log(`${name}  ${text}`);
 }
 
-console.log(`Done: ${numbers.length} clip(s) in ${outDir} (voice ${voice})`);
+console.log(`Done: ${selected.length} clip(s) in ${outDir} (voice ${voice})`);
