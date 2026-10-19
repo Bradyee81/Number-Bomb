@@ -76,6 +76,17 @@ npm run voiceover -- --rate +15% --only 42          # tweak speed / redo one cli
 
 Or replace any file with your own recording of the same name and rebuild.
 
+### Releasing and in-app updates
+
+Settings → **App updates** checks
+`releases/latest/download/latest.json` on this repo and installs a newer
+signed build. To ship an update: bump `version` in `package.json`,
+`src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml`, then push a `v*` tag.
+CI signs the installers with the `TAURI_SIGNING_PRIVATE_KEY` repo secret
+(the contents of `~/.tauri/number-bomb.key`, no password) and publishes
+`latest.json`. Keep a backup of that key: without it, installed copies can't
+be updated.
+
 Windows builds are produced by CI (`.github/workflows/release.yml`) on a
 `v*` tag push — building a Windows installer on Linux/macOS requires a
 Windows machine or CI runner, which is why local builds only target your

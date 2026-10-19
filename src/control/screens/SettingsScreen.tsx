@@ -4,6 +4,7 @@ import { copyFile, mkdir, BaseDirectory } from "@tauri-apps/plugin-fs";
 import { appDataDir, join } from "@tauri-apps/api/path";
 import { CHROMA_PRESETS, CUSTOM_FONT_FAMILY_NAME, FONT_PRESETS, type Settings } from "../../types";
 import { useSettings } from "../SettingsContext";
+import { UpdateSection } from "../UpdateSection";
 
 export function SettingsScreen() {
   const { settings, updateSettings } = useSettings();
@@ -268,6 +269,8 @@ export function SettingsScreen() {
           className="w-64"
         />
       </section>
+
+      <UpdateSection />
     </div>
   );
 }
