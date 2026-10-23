@@ -1,6 +1,6 @@
 [package]
 name = "number-bomb"
-version = "0.3.0"
+version = "0.3.1"
 description = "Live stage number-guessing game with chroma-key output"
 authors = ["Brad"]
 edition = "2021"
