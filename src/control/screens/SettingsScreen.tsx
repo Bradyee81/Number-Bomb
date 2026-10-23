@@ -7,6 +7,8 @@ import {
   CUSTOM_FONT_FAMILY_NAME,
   FONT_PRESETS,
   VOICE_LANGUAGES,
+  BOMB_COLOR_PRESETS,
+  colorsClash,
   type Settings,
 } from "../../types";
 import { emitEvent } from "../../lib/events";
@@ -321,13 +323,66 @@ export function SettingsScreen() {
           value={settings.bomb_font_size_px}
           onChange={(v) => set({ bomb_font_size_px: v })}
         />
-        <div className="mb-3 flex h-40 items-center justify-center overflow-hidden rounded-md border border-white/10 bg-black/30">
+        <label className="mb-1 block text-xs uppercase text-white/40">Number color</label>
+        <div className="mb-2 flex flex-wrap items-center gap-2">
+          {BOMB_COLOR_PRESETS.map((preset) => (
+            <button
+              key={preset.hex}
+              onClick={() => set({ bomb_font_color: preset.hex })}
+              title={preset.name}
+              className={`h-8 w-8 rounded-md border ${optionClass(
+                settings.bomb_font_color.toUpperCase() === preset.hex,
+              )}`}
+              style={{ backgroundColor: preset.hex }}
+            />
+          ))}
+          <label className="flex items-center gap-2 text-sm text-white/70">
+            <input
+              type="color"
+              value={settings.bomb_font_color}
+              onChange={(e) => set({ bomb_font_color: e.target.value.toUpperCase() })}
+              className="h-8 w-10 cursor-pointer rounded border border-white/15 bg-transparent"
+            />
+            Custom
+          </label>
+        </div>
+        {colorsClash(settings.bomb_font_color, settings.chroma_color) && (
+          <p className="mb-2 text-xs text-red-400">
+            This color is close to your chroma key color ({settings.chroma_color}) — OBS/vMix may
+            key out the number. Pick a contrasting color or turn on the outline.
+          </p>
+        )}
+        <div className="mb-3 flex items-center gap-3">
+          <Toggle
+            checked={settings.bomb_outline_enabled}
+            onChange={(v) => set({ bomb_outline_enabled: v })}
+          >
+            Outline
+          </Toggle>
+          <input
+            type="color"
+            value={settings.bomb_outline_color}
+            onChange={(e) => set({ bomb_outline_color: e.target.value.toUpperCase() })}
+            disabled={!settings.bomb_outline_enabled}
+            title="Outline color"
+            className="mb-3 h-8 w-10 cursor-pointer rounded border border-white/15 bg-transparent disabled:opacity-40"
+          />
+        </div>
+        <div
+          className="mb-3 flex h-40 items-center justify-center overflow-hidden rounded-md border border-white/10"
+          style={{ backgroundColor: settings.chroma_color }}
+        >
           <span
-            className="font-bold leading-none text-[#F5C518]"
+            className="font-bold leading-none"
             style={{
               fontFamily: settings.bomb_font_family,
               // Preview at 15% so the full range fits; the label shows the real size.
               fontSize: settings.bomb_font_size_px * 0.15,
+              color: settings.bomb_font_color,
+              ...(settings.bomb_outline_enabled && {
+                WebkitTextStroke: `${Math.max(2, settings.bomb_font_size_px * 0.15 * 0.06)}px ${settings.bomb_outline_color}`,
+                paintOrder: "stroke fill",
+              }),
             }}
           >
             88

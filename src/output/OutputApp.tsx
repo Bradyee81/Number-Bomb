@@ -174,6 +174,8 @@ export function OutputApp() {
         size={cellHeight * 2}
         bombFontFamily={settings.bomb_font_family}
         bombFontSizePx={settings.bomb_font_size_px * scale}
+        bombColor={settings.bomb_font_color}
+        bombOutlineColor={settings.bomb_outline_enabled ? settings.bomb_outline_color : null}
       />
       <div className="flex gap-3">
         <SlotReel

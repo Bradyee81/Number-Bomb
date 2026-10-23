@@ -29,6 +29,22 @@ export const FONT_PRESETS: FontPreset[] = [
 
 export const CUSTOM_FONT_FAMILY_NAME = "NumberBombCustomFont";
 
+export const BOMB_COLOR_PRESETS: ChromaPreset[] = [
+  { name: "Gold", hex: "#F5C518" },
+  { name: "White", hex: "#FFFFFF" },
+  { name: "Red", hex: "#FF2D2D" },
+  { name: "Orange", hex: "#FF8A00" },
+  { name: "Black", hex: "#000000" },
+];
+
+/** True when two hex colors are close enough that a chroma key would remove one with the other. */
+export function colorsClash(a: string, b: string): boolean {
+  const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  const [r1, g1, b1] = rgb(a);
+  const [r2, g2, b2] = rgb(b);
+  return Math.hypot(r1 - r2, g1 - g2, b1 - b2) < 140;
+}
+
 // Bundled voice packs in public/audio/<id>/ — keep in sync with
 // LANGUAGES in scripts/generate-voiceover.mjs.
 export const VOICE_LANGUAGES = [
@@ -51,6 +67,9 @@ export interface Settings {
   digit_strip_path: string;
   bomb_font_family: string;
   bomb_font_size_px: number;
+  bomb_font_color: string;
+  bomb_outline_enabled: boolean;
+  bomb_outline_color: string;
   custom_font_path: string;
   explosion_enabled: boolean;
   voice_language: VoiceLanguage;
@@ -89,6 +108,9 @@ export const DEFAULT_SETTINGS: Settings = {
   digit_strip_path: "",
   bomb_font_family: FONT_PRESETS[0].family,
   bomb_font_size_px: 260,
+  bomb_font_color: "#F5C518",
+  bomb_outline_enabled: false,
+  bomb_outline_color: "#000000",
   custom_font_path: "",
   explosion_enabled: true,
   voice_language: "yue",
