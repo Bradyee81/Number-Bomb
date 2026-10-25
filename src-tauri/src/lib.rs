@@ -1,8 +1,17 @@
 use tauri::Manager;
+mod popper;
+mod popper_firmware;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .manage(popper::PopperState::default())
+        .invoke_handler(tauri::generate_handler![
+            popper::popper_ports, popper::popper_wifi_name, popper::provision_popper,
+            popper::popper_status, popper::popper_action,
+            popper_firmware::flash_popper_firmware,
+            popper_firmware::bundled_firmware_version,
+        ])
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())

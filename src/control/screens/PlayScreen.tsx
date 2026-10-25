@@ -1,8 +1,10 @@
 import { useState, type FormEvent } from "react";
 import { confirm } from "@tauri-apps/plugin-dialog";
 import { useRound } from "../RoundContext";
+import { usePopper } from "../PopperContext";
 
 export function PlayScreen() {
+  const popper = usePopper();
   const { state, startRound, call, undo, endRound, bombShown, toggleBombShown } = useRound();
   const [input, setInput] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -54,6 +56,15 @@ export function PlayScreen() {
     <div className="mx-auto max-w-xl p-8">
       <h1 className="mb-1 text-xl font-bold">Play</h1>
       <p className="mb-6 text-white/60">Enter the number a player calls, then press Enter.</p>
+      <div className="mb-5 rounded border border-white/15 p-3">
+        <div className="mb-2 font-semibold">Balloon popper · {popper.armed ? "ARMED" : "Disarmed"} · {popper.connected ? "Connected" : "Not connected"}</div>
+        <div className="mb-2 flex gap-2">
+          <button disabled={!canPlay || !popper.connected || popper.busy || popper.armed || popper.consumed}
+            onClick={() => void popper.arm()} className="rounded bg-red-700 px-3 py-2 font-semibold disabled:opacity-40">Arm this round</button>
+          <button onClick={popper.disarm} className="rounded border border-white/25 px-3 py-2">Disarm</button>
+        </div>
+        <p className="text-xs text-white/70" role="status">{popper.message}</p>
+      </div>
 
       <div className="mb-6 flex items-center gap-6 rounded-md border border-white/10 bg-white/5 px-4 py-3">
         <div>

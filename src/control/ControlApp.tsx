@@ -4,6 +4,7 @@ import { SettingsProvider, useSettings } from "./SettingsContext";
 import { PlayScreen } from "./screens/PlayScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
 import { pickScreen, usePresentToggle, useScreens } from "../lib/presentWindow";
+import { PopperProvider } from "./PopperContext";
 
 type Screen = "play" | "settings";
 
@@ -71,9 +72,11 @@ function Shell() {
 export function ControlApp() {
   return (
     <SettingsProvider>
+      <PopperProvider>
       <RoundProvider>
         <Shell />
       </RoundProvider>
+      </PopperProvider>
     </SettingsProvider>
   );
 }

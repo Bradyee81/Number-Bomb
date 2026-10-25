@@ -1,6 +1,6 @@
 [package]
 name = "number-bomb"
-version = "0.3.1"
+version = "0.4.0"
 description = "Live stage number-guessing game with chroma-key output"
 authors = ["Brad"]
 edition = "2021"
@@ -19,6 +19,9 @@ tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+serialport = "4"
+espflash = { version = "3", default-features = false, features = ["serialport"] }
+getrandom = "0.2"
 tauri-plugin-process = "2"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]

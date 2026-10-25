@@ -7,6 +7,7 @@ import {
   type RoundReducerState,
 } from "../lib/roundState";
 import { emitEvent } from "../lib/events";
+import { usePopper } from "./PopperContext";
 
 const initialState: RoundReducerState = { current: null, undoSnapshot: null };
 
@@ -24,16 +25,18 @@ interface RoundContextValue {
 const RoundContext = createContext<RoundContextValue | null>(null);
 
 export function RoundProvider({ children }: { children: ReactNode }) {
+  const { beginRound: beginPopperRound, disarm: disarmPopper, fire: firePopper } = usePopper();
   const [state, dispatch] = useReducer(roundReducer, initialState);
   const [bombShown, setBombShown] = useState(false);
 
   const startRound = useCallback(() => {
+    beginPopperRound();
     const bomb = randomBomb();
     const next = computeStartRound(bomb);
     dispatch({ type: "start", bomb });
     setBombShown(false);
     void emitEvent("bomb:round-start", { low: next.low, high: next.high });
-  }, []);
+  }, [beginPopperRound]);
 
   const call = useCallback(
     (n: number) => {
@@ -46,14 +49,15 @@ export function RoundProvider({ children }: { children: ReactNode }) {
         high: exploded ? n : next.high,
         exploded,
       });
-      if (exploded) setBombShown(true);
+      if (exploded) { setBombShown(true); firePopper(); }
     },
-    [state.current]
+    [state.current, firePopper]
   );
 
   const undo = useCallback(() => {
     if (!state.undoSnapshot) return;
     const snapshot = state.undoSnapshot;
+    disarmPopper();
     dispatch({ type: "undo" });
     setBombShown(false);
     void emitEvent("bomb:undo", {
@@ -61,14 +65,15 @@ export function RoundProvider({ children }: { children: ReactNode }) {
       high: snapshot.high,
       exploded: snapshot.status === "exploded",
     });
-  }, [state.undoSnapshot]);
+  }, [state.undoSnapshot, disarmPopper]);
 
   const endRound = useCallback(() => {
+    disarmPopper();
     if (!state.current) return;
     dispatch({ type: "end" });
     setBombShown(false);
     void emitEvent("bomb:round-end", {});
-  }, [state.current]);
+  }, [state.current, disarmPopper]);
 
   const toggleBombShown = useCallback(() => {
     if (!state.current) return;

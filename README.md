@@ -58,6 +58,15 @@ Windows builds are published on the [Releases page](https://github.com/Bradyee81
 
 ## Development
 
+### Balloon popper
+
+Settings includes an ESP32 firmware updater, USB WiFi pairing and relay-only
+test. Play has a per-round Arm/Disarm control; only a losing number can send
+one automatic trigger. Setup, wiring and acceptance checks are in
+[the popper guide](docs/popper-setup.md). Keep heater power disconnected while
+flashing and testing the game connection. The event laptop needs the updated
+installer, not the older installed app.
+
 Requires [Node.js](https://nodejs.org), [Rust](https://rustup.rs), and
 Tauri's platform dependencies (see the
 [Tauri prerequisites guide](https://v2.tauri.app/start/prerequisites/)).

@@ -16,6 +16,7 @@ import { previewHit, previewSfx, previewVoice } from "../../lib/audio";
 import { useSettings } from "../SettingsContext";
 import { UpdateSection } from "../UpdateSection";
 import { FactoryResetSection } from "../FactoryResetSection";
+import { PopperSetup } from "../PopperSetup";
 
 const PRIMARY_BTN =
   "rounded-md bg-[#F5C518] px-3 py-1.5 font-semibold text-[#10141F] disabled:opacity-40";
@@ -519,6 +520,7 @@ export function SettingsScreen() {
         </div>
       </section>
 
+      <PopperSetup />
       <UpdateSection />
       <FactoryResetSection />
     </div>
