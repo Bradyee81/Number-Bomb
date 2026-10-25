@@ -18,6 +18,28 @@ import { UpdateSection } from "../UpdateSection";
 import { FactoryResetSection } from "../FactoryResetSection";
 import { PopperSetup } from "../PopperSetup";
 
+const SETTINGS_TABS = [
+  { id: "display", label: "Display" },
+  { id: "bomb", label: "Bomb Number" },
+  { id: "audio", label: "Audio" },
+  { id: "popper", label: "Popper" },
+  { id: "system", label: "System" },
+] as const;
+
+type SettingsTab = (typeof SETTINGS_TABS)[number]["id"];
+
+const TAB_STORAGE_KEY = "number-bomb:settings-tab";
+
+function loadTab(): SettingsTab {
+  try {
+    const saved = localStorage.getItem(TAB_STORAGE_KEY);
+    if (SETTINGS_TABS.some((t) => t.id === saved)) return saved as SettingsTab;
+  } catch {
+    // Storage unavailable — fall back to the first tab.
+  }
+  return "display";
+}
+
 const PRIMARY_BTN =
   "rounded-md bg-[#F5C518] px-3 py-1.5 font-semibold text-[#10141F] disabled:opacity-40";
 const SECONDARY_BTN =
@@ -85,8 +107,18 @@ function Slider({
 export function SettingsScreen() {
   const { settings, updateSettings } = useSettings();
   const [busy, setBusy] = useState(false);
+  const [tab, setTab] = useState<SettingsTab>(loadTab);
 
   if (!settings) return null;
+
+  const chooseTab = (id: SettingsTab) => {
+    setTab(id);
+    try {
+      localStorage.setItem(TAB_STORAGE_KEY, id);
+    } catch {
+      // Storage unavailable — the tab just isn't remembered.
+    }
+  };
 
   const set = (patch: Partial<Settings>) => {
     void updateSettings(patch);
@@ -123,406 +155,447 @@ export function SettingsScreen() {
 
   return (
     <div className="mx-auto max-w-2xl p-8">
-      <h1 className="mb-1 text-xl font-bold">Settings</h1>
+      <h1 className="mb-4 text-xl font-bold">Settings</h1>
 
-      <section className="mb-8">
-        <label className="mb-2 block font-semibold">Chroma key background</label>
-        <div className="grid grid-cols-4 gap-3">
-          {CHROMA_PRESETS.map((preset) => (
-            <button
-              key={preset.hex}
-              onClick={() => set({ chroma_color: preset.hex })}
-              className={`flex flex-col items-center gap-1.5 rounded-md border p-2 ${optionClass(
-                settings.chroma_color === preset.hex,
-              )}`}
-            >
-              <div className="h-10 w-full rounded" style={{ backgroundColor: preset.hex }} />
-              <span className="text-[11px] text-white/60">{preset.name}</span>
-            </button>
-          ))}
-        </div>
-        <p className="mt-2 text-xs text-white/40">
-          Pick a preset that doesn't visually clash with the digit strip so the switcher can key
-          it out cleanly.
-        </p>
-      </section>
-
-      <section className="mb-8">
-        <label className="mb-2 block font-semibold">Background image or video</label>
-        <p className="mb-2 text-xs text-white/40">
-          {settings.background_path || "None — plain chroma key color shown"}. Fills the whole
-          Output screen (cropped to fit): use 16:9, 1920×1080 (PNG/JPG, or a looping MP4 — video
-          plays muted). Leave empty if you key out the background in OBS/vMix.
-        </p>
-        <div className="flex gap-2">
+      <div
+        role="tablist"
+        className="sticky top-0 z-10 -mx-8 mb-6 flex gap-1 border-b border-white/10 bg-[#0B0F17] px-8"
+      >
+        {SETTINGS_TABS.map((t) => (
           <button
-            onClick={() =>
-              pickMedia(BACKGROUND, "background.png", (p) => ({ background_path: p }))
-            }
-            disabled={busy}
-            className={PRIMARY_BTN}
+            key={t.id}
+            role="tab"
+            aria-selected={tab === t.id}
+            onClick={() => chooseTab(t.id)}
+            className={`-mb-px border-b-2 px-3 py-2 text-sm transition-colors ${
+              tab === t.id
+                ? "border-[#F5C518] font-semibold text-[#F5C518]"
+                : "border-transparent text-white/60 hover:text-white"
+            }`}
           >
-            {browseLabel}
+            {t.label}
           </button>
-          {settings.background_path && (
-            <button onClick={() => set({ background_path: "" })} className={SECONDARY_BTN}>
-              Remove
-            </button>
-          )}
-        </div>
-      </section>
+        ))}
+      </div>
 
-      <section className="mb-8">
-        <label className="mb-2 block font-semibold">Output size</label>
-        <p className="mb-2 text-xs text-white/40">
-          Scales the reels and center display on the Output screen. Layout is designed for
-          1920×1080 and scales to any screen resolution automatically.
-        </p>
-        <Slider
-          label={`Size (${Math.round(settings.output_scale * 100)}%)`}
-          min={0.5}
-          max={1.4}
-          step={0.05}
-          value={settings.output_scale}
-          onChange={(v) => set({ output_scale: v })}
-        />
-      </section>
+      {tab === "display" && (
+        <>
+          <section className="mb-8">
+            <label className="mb-2 block font-semibold">Chroma key background</label>
+            <div className="grid grid-cols-4 gap-3">
+              {CHROMA_PRESETS.map((preset) => (
+                <button
+                  key={preset.hex}
+                  onClick={() => set({ chroma_color: preset.hex })}
+                  className={`flex flex-col items-center gap-1.5 rounded-md border p-2 ${optionClass(
+                    settings.chroma_color === preset.hex,
+                  )}`}
+                >
+                  <div className="h-10 w-full rounded" style={{ backgroundColor: preset.hex }} />
+                  <span className="text-[11px] text-white/60">{preset.name}</span>
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-xs text-white/40">
+              Pick a preset that doesn't visually clash with the digit strip so the switcher can key
+              it out cleanly.
+            </p>
+          </section>
 
-      <section className="mb-8">
-        <label className="mb-2 block font-semibold">Explosion video</label>
-        <Toggle
-          checked={settings.explosion_enabled}
-          onChange={(v) => set({ explosion_enabled: v })}
-        >
-          Play explosion on bomb hit (off: no video, the bomb number just appears)
-        </Toggle>
-        <p className="mb-2 text-xs text-white/40">
-          {settings.explosion_video_path || "Using bundled default"}. Fills the whole screen —
-          use a 16:9 MP4, ideally 1920×1080.
-        </p>
-        <button
-          onClick={() =>
-            pickMedia(VIDEO, "explosion.mp4", (p) => ({ explosion_video_path: p }))
-          }
-          disabled={busy || !settings.explosion_enabled}
-          className={PRIMARY_BTN}
-        >
-          {browseLabel}
-        </button>
-      </section>
+          <section className="mb-8">
+            <label className="mb-2 block font-semibold">Background image or video</label>
+            <p className="mb-2 text-xs text-white/40">
+              {settings.background_path || "None — plain chroma key color shown"}. Fills the whole
+              Output screen (cropped to fit): use 16:9, 1920×1080 (PNG/JPG, or a looping MP4 — video
+              plays muted). Leave empty if you key out the background in OBS/vMix.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() =>
+                  pickMedia(BACKGROUND, "background.png", (p) => ({ background_path: p }))
+                }
+                disabled={busy}
+                className={PRIMARY_BTN}
+              >
+                {browseLabel}
+              </button>
+              {settings.background_path && (
+                <button onClick={() => set({ background_path: "" })} className={SECONDARY_BTN}>
+                  Remove
+                </button>
+              )}
+            </div>
+          </section>
 
-      <section className="mb-8">
-        <label className="mb-2 block font-semibold">Center loop video</label>
-        <p className="mb-2 text-xs text-white/40">
-          {settings.center_video_path || "None set — fallback icon shown instead"}. Shown as a
-          square (520×520 at 100% size) — use a 1:1 MP4, at least 520×520 (1080×1080 ideal).
-        </p>
-        <div className="flex gap-2">
-          <button
-            onClick={() =>
-              pickMedia(VIDEO, "center-video.mp4", (p) => ({ center_video_path: p }))
-            }
-            disabled={busy}
-            className={PRIMARY_BTN}
-          >
-            {browseLabel}
-          </button>
-          {settings.center_video_path && (
-            <button onClick={() => set({ center_video_path: "" })} className={SECONDARY_BTN}>
-              Remove
-            </button>
-          )}
-        </div>
-      </section>
-
-      <section className="mb-8">
-        <label className="mb-2 block font-semibold">Center fallback icon</label>
-        <p className="mb-2 text-xs text-white/40">
-          {settings.center_icon_path || "Using bundled default"}. Square image, at least 520×520
-          (transparent PNG works best).
-        </p>
-        <button
-          onClick={() => pickMedia(IMAGE, "center-icon.png", (p) => ({ center_icon_path: p }))}
-          disabled={busy}
-          className={PRIMARY_BTN}
-        >
-          {browseLabel}
-        </button>
-      </section>
-
-      <section className="mb-8">
-        <label className="mb-2 block font-semibold">Reel digit strip image</label>
-        <p className="mb-2 text-xs text-white/40">
-          {settings.digit_strip_path || "Using bundled default"}. Must be a vertical strip of 10
-          digits (0 at top, 9 at bottom), each cell 200×300px — matching the default asset's
-          layout, or the reel spin animation will look misaligned.
-        </p>
-        <button
-          onClick={() =>
-            pickMedia(IMAGE, "digit-strip.png", (p) => ({ digit_strip_path: p }))
-          }
-          disabled={busy}
-          className={PRIMARY_BTN}
-        >
-          {browseLabel}
-        </button>
-      </section>
-
-      <section className="mb-8">
-        <label className="mb-2 block font-semibold">Bomb number font</label>
-        <p className="mb-3 text-xs text-white/40">
-          Used for the bomb number shown in the center after a hit or Reveal Bomb. (The reel
-          digits come from the digit strip image above.)
-        </p>
-        <div className="mb-3 grid grid-cols-3 gap-2">
-          {FONT_PRESETS.map((preset) => (
-            <button
-              key={preset.family}
-              onClick={() => set({ bomb_font_family: preset.family })}
-              style={{ fontFamily: preset.family }}
-              className={`rounded-md border px-3 py-2 text-lg ${optionClass(
-                settings.bomb_font_family === preset.family,
-              )}`}
-              title={preset.name}
-            >
-              88
-            </button>
-          ))}
-          {settings.custom_font_path && (
-            <button
-              onClick={() => set({ bomb_font_family: CUSTOM_FONT_FAMILY_NAME })}
-              className={`rounded-md border px-3 py-2 text-lg ${optionClass(
-                settings.bomb_font_family === CUSTOM_FONT_FAMILY_NAME,
-              )}`}
-              title="Your uploaded font"
-            >
-              My Font
-            </button>
-          )}
-        </div>
-        <button
-          onClick={() =>
-            pickMedia(FONT, "custom-font.ttf", (p) => ({
-              custom_font_path: p,
-              bomb_font_family: CUSTOM_FONT_FAMILY_NAME,
-            }))
-          }
-          disabled={busy}
-          className={`mb-4 ${SECONDARY_BTN}`}
-        >
-          {busy
-            ? "Copying…"
-            : settings.custom_font_path
-              ? "Replace uploaded font…"
-              : "Upload your own font…"}
-        </button>
-        <Slider
-          label={`Font size (${settings.bomb_font_size_px}px at 100% output size)`}
-          min={40}
-          max={1000}
-          step={10}
-          value={settings.bomb_font_size_px}
-          onChange={(v) => set({ bomb_font_size_px: v })}
-        />
-        <label className="mb-1 block text-xs uppercase text-white/40">Number color</label>
-        <div className="mb-2 flex flex-wrap items-center gap-2">
-          {BOMB_COLOR_PRESETS.map((preset) => (
-            <button
-              key={preset.hex}
-              onClick={() => set({ bomb_font_color: preset.hex })}
-              title={preset.name}
-              className={`h-8 w-8 rounded-md border ${optionClass(
-                settings.bomb_font_color.toUpperCase() === preset.hex,
-              )}`}
-              style={{ backgroundColor: preset.hex }}
+          <section className="mb-8">
+            <label className="mb-2 block font-semibold">Output size</label>
+            <p className="mb-2 text-xs text-white/40">
+              Scales the reels and center display on the Output screen. Layout is designed for
+              1920×1080 and scales to any screen resolution automatically.
+            </p>
+            <Slider
+              label={`Size (${Math.round(settings.output_scale * 100)}%)`}
+              min={0.5}
+              max={1.4}
+              step={0.05}
+              value={settings.output_scale}
+              onChange={(v) => set({ output_scale: v })}
             />
-          ))}
-          <label className="flex items-center gap-2 text-sm text-white/70">
-            <input
-              type="color"
-              value={settings.bomb_font_color}
-              onChange={(e) => set({ bomb_font_color: e.target.value.toUpperCase() })}
-              className="h-8 w-10 cursor-pointer rounded border border-white/15 bg-transparent"
-            />
-            Custom
-          </label>
-        </div>
-        {colorsClash(settings.bomb_font_color, settings.chroma_color) && (
-          <p className="mb-2 text-xs text-red-400">
-            This color is close to your chroma key color ({settings.chroma_color}) — OBS/vMix may
-            key out the number. Pick a contrasting color or turn on the outline.
-          </p>
-        )}
-        <div className="mb-3 flex items-center gap-3">
-          <Toggle
-            checked={settings.bomb_outline_enabled}
-            onChange={(v) => set({ bomb_outline_enabled: v })}
-          >
-            Outline
-          </Toggle>
-          <input
-            type="color"
-            value={settings.bomb_outline_color}
-            onChange={(e) => set({ bomb_outline_color: e.target.value.toUpperCase() })}
-            disabled={!settings.bomb_outline_enabled}
-            title="Outline color"
-            className="mb-3 h-8 w-10 cursor-pointer rounded border border-white/15 bg-transparent disabled:opacity-40"
-          />
-        </div>
-        <div
-          className="mb-3 flex h-40 items-center justify-center overflow-hidden rounded-md border border-white/10"
-          style={{ backgroundColor: settings.chroma_color }}
-        >
-          <span
-            className="font-bold leading-none"
-            style={{
-              fontFamily: settings.bomb_font_family,
-              // Preview at 15% so the full range fits; the label shows the real size.
-              fontSize: settings.bomb_font_size_px * 0.15,
-              color: settings.bomb_font_color,
-              ...(settings.bomb_outline_enabled && {
-                WebkitTextStroke: `${Math.max(2, settings.bomb_font_size_px * 0.15 * 0.06)}px ${settings.bomb_outline_color}`,
-                paintOrder: "stroke fill",
-              }),
-            }}
-          >
-            88
-          </span>
-        </div>
-        <button
-          onClick={() => void emitEvent("display:preview-font", {})}
-          className={SECONDARY_BTN}
-        >
-          Preview on Output (3 s)
-        </button>
-      </section>
+          </section>
 
-      <section className="mb-8">
-        <label className="mb-2 block font-semibold">Voiceover</label>
-        <div className="mb-3 grid grid-cols-3 gap-2">
-          {VOICE_LANGUAGES.map((lang) => (
-            <button
-              key={lang.id}
-              onClick={() => set({ voice_language: lang.id })}
-              className={`rounded-md border px-3 py-2 text-sm ${optionClass(
-                settings.voice_language === lang.id,
-              )}`}
+          <section className="mb-8">
+            <label className="mb-2 block font-semibold">Explosion video</label>
+            <Toggle
+              checked={settings.explosion_enabled}
+              onChange={(v) => set({ explosion_enabled: v })}
             >
-              {lang.name}
+              Play explosion on bomb hit (off: no video, the bomb number just appears)
+            </Toggle>
+            <p className="mb-2 text-xs text-white/40">
+              {settings.explosion_video_path || "Using bundled default"}. Fills the whole screen —
+              use a 16:9 MP4, ideally 1920×1080.
+            </p>
+            <button
+              onClick={() =>
+                pickMedia(VIDEO, "explosion.mp4", (p) => ({ explosion_video_path: p }))
+              }
+              disabled={busy || !settings.explosion_enabled}
+              className={PRIMARY_BTN}
+            >
+              {browseLabel}
             </button>
-          ))}
-        </div>
-        <Slider
-          label={`Speed (${settings.voice_speed.toFixed(2)}×)`}
-          min={0.6}
-          max={1.3}
-          step={0.05}
-          value={settings.voice_speed}
-          onChange={(v) => set({ voice_speed: v })}
-        />
-        <Slider
-          label={`Volume (${Math.round(settings.voiceover_volume * 100)}%)`}
-          min={0}
-          max={1}
-          step={0.05}
-          value={settings.voiceover_volume}
-          onChange={(v) => set({ voiceover_volume: v })}
-        />
-        <button onClick={() => previewVoice(settings)} className={SECONDARY_BTN}>
-          ▶ Play sample
-        </button>
-      </section>
+          </section>
 
-      <section className="mb-8">
-        <label className="mb-2 block font-semibold">Bomb hit announcement</label>
-        <Toggle
-          checked={settings.hit_number_enabled}
-          onChange={(v) => set({ hit_number_enabled: v })}
-        >
-          Read out the bomb number
-        </Toggle>
-        <Toggle
-          checked={settings.hit_line_enabled}
-          onChange={(v) => set({ hit_line_enabled: v })}
-        >
-          Then play the hit line
-        </Toggle>
-        <p className="mb-2 text-xs text-white/40">
-          {settings.hit_line_path ||
-            "Using the built-in line for the selected language (Cantonese: 哈哈哈，你开口中)"}
-        </p>
-        <div className="flex gap-2">
-          <button onClick={() => previewHit(settings)} className={SECONDARY_BTN}>
-            ▶ Play
-          </button>
-          <button
-            onClick={() => pickMedia(AUDIO, "hit-line.mp3", (p) => ({ hit_line_path: p }))}
-            disabled={busy || !settings.hit_line_enabled}
-            className={SECONDARY_BTN}
-          >
-            {busy ? "Copying…" : "Upload your own…"}
-          </button>
-          {settings.hit_line_path && (
-            <button onClick={() => set({ hit_line_path: "" })} className={SECONDARY_BTN}>
-              Use default
+          <section className="mb-8">
+            <label className="mb-2 block font-semibold">Center loop video</label>
+            <p className="mb-2 text-xs text-white/40">
+              {settings.center_video_path || "None set — fallback icon shown instead"}. Shown as a
+              square (520×520 at 100% size) — use a 1:1 MP4, at least 520×520 (1080×1080 ideal).
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() =>
+                  pickMedia(VIDEO, "center-video.mp4", (p) => ({ center_video_path: p }))
+                }
+                disabled={busy}
+                className={PRIMARY_BTN}
+              >
+                {browseLabel}
+              </button>
+              {settings.center_video_path && (
+                <button onClick={() => set({ center_video_path: "" })} className={SECONDARY_BTN}>
+                  Remove
+                </button>
+              )}
+            </div>
+          </section>
+
+          <section className="mb-8">
+            <label className="mb-2 block font-semibold">Center fallback icon</label>
+            <p className="mb-2 text-xs text-white/40">
+              {settings.center_icon_path || "Using bundled default"}. Square image, at least 520×520
+              (transparent PNG works best).
+            </p>
+            <button
+              onClick={() => pickMedia(IMAGE, "center-icon.png", (p) => ({ center_icon_path: p }))}
+              disabled={busy}
+              className={PRIMARY_BTN}
+            >
+              {browseLabel}
             </button>
-          )}
-        </div>
-      </section>
+          </section>
 
-      <section className="mb-8">
-        <label className="mb-2 block font-semibold">Sound effects</label>
-        <Slider
-          label={`Effects volume (${Math.round(settings.sfx_volume * 100)}%)`}
-          min={0}
-          max={1}
-          step={0.05}
-          value={settings.sfx_volume}
-          onChange={(v) => set({ sfx_volume: v })}
-        />
+          <section className="mb-8">
+            <label className="mb-2 block font-semibold">Reel digit strip image</label>
+            <p className="mb-2 text-xs text-white/40">
+              {settings.digit_strip_path || "Using bundled default"}. Must be a vertical strip of 10
+              digits (0 at top, 9 at bottom), each cell 200×300px — matching the default asset's
+              layout, or the reel spin animation will look misaligned.
+            </p>
+            <button
+              onClick={() =>
+                pickMedia(IMAGE, "digit-strip.png", (p) => ({ digit_strip_path: p }))
+              }
+              disabled={busy}
+              className={PRIMARY_BTN}
+            >
+              {browseLabel}
+            </button>
+          </section>
+        </>
+      )}
 
-        <div className="mb-4 rounded-md border border-white/10 p-3">
-          <Toggle
-            checked={settings.call_sfx_enabled}
-            onChange={(v) => set({ call_sfx_enabled: v })}
-          >
-            Safe-call sound before each number announcement
-          </Toggle>
-          <p className="mb-2 text-xs text-white/40">
-            {settings.call_sfx_path || "Using bundled chime"}
-          </p>
-          <SfxButtons
-            busy={busy}
-            custom={!!settings.call_sfx_path}
-            onPreview={() => previewSfx("call", settings)}
-            onBrowse={() => pickMedia(AUDIO, "call-sound.mp3", (p) => ({ call_sfx_path: p }))}
-            onReset={() => set({ call_sfx_path: "" })}
-          />
-        </div>
+      {tab === "bomb" && (
+        <>
+          <section className="mb-8">
+            <label className="mb-2 block font-semibold">Bomb number font</label>
+            <p className="mb-3 text-xs text-white/40">
+              Used for the bomb number shown in the center after a hit or Reveal Bomb. (The reel
+              digits come from the digit strip image above.)
+            </p>
+            <div className="mb-3 grid grid-cols-3 gap-2">
+              {FONT_PRESETS.map((preset) => (
+                <button
+                  key={preset.family}
+                  onClick={() => set({ bomb_font_family: preset.family })}
+                  style={{ fontFamily: preset.family }}
+                  className={`rounded-md border px-3 py-2 text-lg ${optionClass(
+                    settings.bomb_font_family === preset.family,
+                  )}`}
+                  title={preset.name}
+                >
+                  88
+                </button>
+              ))}
+              {settings.custom_font_path && (
+                <button
+                  onClick={() => set({ bomb_font_family: CUSTOM_FONT_FAMILY_NAME })}
+                  className={`rounded-md border px-3 py-2 text-lg ${optionClass(
+                    settings.bomb_font_family === CUSTOM_FONT_FAMILY_NAME,
+                  )}`}
+                  title="Your uploaded font"
+                >
+                  My Font
+                </button>
+              )}
+            </div>
+            <button
+              onClick={() =>
+                pickMedia(FONT, "custom-font.ttf", (p) => ({
+                  custom_font_path: p,
+                  bomb_font_family: CUSTOM_FONT_FAMILY_NAME,
+                }))
+              }
+              disabled={busy}
+              className={`mb-4 ${SECONDARY_BTN}`}
+            >
+              {busy
+                ? "Copying…"
+                : settings.custom_font_path
+                  ? "Replace uploaded font…"
+                  : "Upload your own font…"}
+            </button>
+            <Slider
+              label={`Font size (${settings.bomb_font_size_px}px at 100% output size)`}
+              min={40}
+              max={1000}
+              step={10}
+              value={settings.bomb_font_size_px}
+              onChange={(v) => set({ bomb_font_size_px: v })}
+            />
+            <label className="mb-1 block text-xs uppercase text-white/40">Number color</label>
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              {BOMB_COLOR_PRESETS.map((preset) => (
+                <button
+                  key={preset.hex}
+                  onClick={() => set({ bomb_font_color: preset.hex })}
+                  title={preset.name}
+                  className={`h-8 w-8 rounded-md border ${optionClass(
+                    settings.bomb_font_color.toUpperCase() === preset.hex,
+                  )}`}
+                  style={{ backgroundColor: preset.hex }}
+                />
+              ))}
+              <label className="flex items-center gap-2 text-sm text-white/70">
+                <input
+                  type="color"
+                  value={settings.bomb_font_color}
+                  onChange={(e) => set({ bomb_font_color: e.target.value.toUpperCase() })}
+                  className="h-8 w-10 cursor-pointer rounded border border-white/15 bg-transparent"
+                />
+                Custom
+              </label>
+            </div>
+            {colorsClash(settings.bomb_font_color, settings.chroma_color) && (
+              <p className="mb-2 text-xs text-red-400">
+                This color is close to your chroma key color ({settings.chroma_color}) — OBS/vMix may
+                key out the number. Pick a contrasting color or turn on the outline.
+              </p>
+            )}
+            <div className="mb-3 flex items-center gap-3">
+              <Toggle
+                checked={settings.bomb_outline_enabled}
+                onChange={(v) => set({ bomb_outline_enabled: v })}
+              >
+                Outline
+              </Toggle>
+              <input
+                type="color"
+                value={settings.bomb_outline_color}
+                onChange={(e) => set({ bomb_outline_color: e.target.value.toUpperCase() })}
+                disabled={!settings.bomb_outline_enabled}
+                title="Outline color"
+                className="mb-3 h-8 w-10 cursor-pointer rounded border border-white/15 bg-transparent disabled:opacity-40"
+              />
+            </div>
+            <div
+              className="mb-3 flex h-40 items-center justify-center overflow-hidden rounded-md border border-white/10"
+              style={{ backgroundColor: settings.chroma_color }}
+            >
+              <span
+                className="font-bold leading-none"
+                style={{
+                  fontFamily: settings.bomb_font_family,
+                  // Preview at 15% so the full range fits; the label shows the real size.
+                  fontSize: settings.bomb_font_size_px * 0.15,
+                  color: settings.bomb_font_color,
+                  ...(settings.bomb_outline_enabled && {
+                    WebkitTextStroke: `${Math.max(2, settings.bomb_font_size_px * 0.15 * 0.06)}px ${settings.bomb_outline_color}`,
+                    paintOrder: "stroke fill",
+                  }),
+                }}
+              >
+                88
+              </span>
+            </div>
+            <button
+              onClick={() => void emitEvent("display:preview-font", {})}
+              className={SECONDARY_BTN}
+            >
+              Preview on Output (3 s)
+            </button>
+          </section>
+        </>
+      )}
 
-        <div className="rounded-md border border-white/10 p-3">
-          <Toggle
-            checked={settings.hit_sfx_enabled}
-            onChange={(v) => set({ hit_sfx_enabled: v })}
-          >
-            Bomb sound on hit (plays over the explosion video's own audio)
-          </Toggle>
-          <p className="mb-2 text-xs text-white/40">
-            {settings.hit_sfx_path || "Using bundled boom"}
-          </p>
-          <SfxButtons
-            busy={busy}
-            custom={!!settings.hit_sfx_path}
-            onPreview={() => previewSfx("hit", settings)}
-            onBrowse={() => pickMedia(AUDIO, "hit-sound.mp3", (p) => ({ hit_sfx_path: p }))}
-            onReset={() => set({ hit_sfx_path: "" })}
-          />
-        </div>
-      </section>
+      {tab === "audio" && (
+        <>
+          <section className="mb-8">
+            <label className="mb-2 block font-semibold">Voiceover</label>
+            <div className="mb-3 grid grid-cols-3 gap-2">
+              {VOICE_LANGUAGES.map((lang) => (
+                <button
+                  key={lang.id}
+                  onClick={() => set({ voice_language: lang.id })}
+                  className={`rounded-md border px-3 py-2 text-sm ${optionClass(
+                    settings.voice_language === lang.id,
+                  )}`}
+                >
+                  {lang.name}
+                </button>
+              ))}
+            </div>
+            <Slider
+              label={`Speed (${settings.voice_speed.toFixed(2)}×)`}
+              min={0.6}
+              max={1.3}
+              step={0.05}
+              value={settings.voice_speed}
+              onChange={(v) => set({ voice_speed: v })}
+            />
+            <Slider
+              label={`Volume (${Math.round(settings.voiceover_volume * 100)}%)`}
+              min={0}
+              max={1}
+              step={0.05}
+              value={settings.voiceover_volume}
+              onChange={(v) => set({ voiceover_volume: v })}
+            />
+            <button onClick={() => previewVoice(settings)} className={SECONDARY_BTN}>
+              ▶ Play sample
+            </button>
+          </section>
 
-      <PopperSetup />
-      <UpdateSection />
-      <FactoryResetSection />
+          <section className="mb-8">
+            <label className="mb-2 block font-semibold">Bomb hit announcement</label>
+            <Toggle
+              checked={settings.hit_number_enabled}
+              onChange={(v) => set({ hit_number_enabled: v })}
+            >
+              Read out the bomb number
+            </Toggle>
+            <Toggle
+              checked={settings.hit_line_enabled}
+              onChange={(v) => set({ hit_line_enabled: v })}
+            >
+              Then play the hit line
+            </Toggle>
+            <p className="mb-2 text-xs text-white/40">
+              {settings.hit_line_path ||
+                "Using the built-in line for the selected language (Cantonese: 哈哈哈，你开口中)"}
+            </p>
+            <div className="flex gap-2">
+              <button onClick={() => previewHit(settings)} className={SECONDARY_BTN}>
+                ▶ Play
+              </button>
+              <button
+                onClick={() => pickMedia(AUDIO, "hit-line.mp3", (p) => ({ hit_line_path: p }))}
+                disabled={busy || !settings.hit_line_enabled}
+                className={SECONDARY_BTN}
+              >
+                {busy ? "Copying…" : "Upload your own…"}
+              </button>
+              {settings.hit_line_path && (
+                <button onClick={() => set({ hit_line_path: "" })} className={SECONDARY_BTN}>
+                  Use default
+                </button>
+              )}
+            </div>
+          </section>
+
+          <section className="mb-8">
+            <label className="mb-2 block font-semibold">Sound effects</label>
+            <Slider
+              label={`Effects volume (${Math.round(settings.sfx_volume * 100)}%)`}
+              min={0}
+              max={1}
+              step={0.05}
+              value={settings.sfx_volume}
+              onChange={(v) => set({ sfx_volume: v })}
+            />
+
+            <div className="mb-4 rounded-md border border-white/10 p-3">
+              <Toggle
+                checked={settings.call_sfx_enabled}
+                onChange={(v) => set({ call_sfx_enabled: v })}
+              >
+                Safe-call sound before each number announcement
+              </Toggle>
+              <p className="mb-2 text-xs text-white/40">
+                {settings.call_sfx_path || "Using bundled chime"}
+              </p>
+              <SfxButtons
+                busy={busy}
+                custom={!!settings.call_sfx_path}
+                onPreview={() => previewSfx("call", settings)}
+                onBrowse={() => pickMedia(AUDIO, "call-sound.mp3", (p) => ({ call_sfx_path: p }))}
+                onReset={() => set({ call_sfx_path: "" })}
+              />
+            </div>
+
+            <div className="rounded-md border border-white/10 p-3">
+              <Toggle
+                checked={settings.hit_sfx_enabled}
+                onChange={(v) => set({ hit_sfx_enabled: v })}
+              >
+                Bomb sound on hit (plays over the explosion video's own audio)
+              </Toggle>
+              <p className="mb-2 text-xs text-white/40">
+                {settings.hit_sfx_path || "Using bundled boom"}
+              </p>
+              <SfxButtons
+                busy={busy}
+                custom={!!settings.hit_sfx_path}
+                onPreview={() => previewSfx("hit", settings)}
+                onBrowse={() => pickMedia(AUDIO, "hit-sound.mp3", (p) => ({ hit_sfx_path: p }))}
+                onReset={() => set({ hit_sfx_path: "" })}
+              />
+            </div>
+          </section>
+        </>
+      )}
+
+      {tab === "popper" && (
+        <>
+          <PopperSetup />
+        </>
+      )}
+      {tab === "system" && (
+        <>
+          <UpdateSection />
+          <FactoryResetSection />
+        </>
+      )}
     </div>
   );
 }
