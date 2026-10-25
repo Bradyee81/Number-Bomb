@@ -8,7 +8,7 @@ pub fn run() {
         .manage(popper::PopperState::default())
         .invoke_handler(tauri::generate_handler![
             popper::popper_ports, popper::popper_wifi_name, popper::provision_popper,
-            popper::popper_status, popper::popper_action,
+            popper::popper_status, popper::popper_action, popper::popper_probe,
             popper_firmware::flash_popper_firmware,
             popper_firmware::bundled_firmware_version,
         ])

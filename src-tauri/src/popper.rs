@@ -205,11 +205,86 @@ pub fn popper_action(app: tauri::AppHandle, state: tauri::State<'_, PopperState>
     result
 }
 
+#[derive(Serialize)]
+pub struct PortInfo {
+    name: String,
+    /// e.g. "COM5 — Silicon Labs CP2102"
+    label: String,
+    /// USB-serial chip family, so Setup can say which driver applies: "cp210x" | "ch340" | "ftdi" | "other".
+    chip: &'static str,
+}
+
+fn chip_family(vid: u16) -> &'static str {
+    match vid {
+        0x10C4 => "cp210x",
+        0x1A86 => "ch340",
+        0x0403 => "ftdi",
+        _ => "other",
+    }
+}
+
 #[tauri::command]
-pub fn popper_ports() -> Result<Vec<String>, String> {
+pub fn popper_ports() -> Result<Vec<PortInfo>, String> {
     Ok(serialport::available_ports().map_err(|e| e.to_string())?.into_iter()
-        .filter(|p| matches!(&p.port_type, serialport::SerialPortType::UsbPort(_)))
-        .map(|p| p.port_name).collect())
+        .filter_map(|p| match p.port_type {
+            serialport::SerialPortType::UsbPort(usb) => {
+                let chip = chip_family(usb.vid);
+                let fallback = match chip {
+                    "cp210x" => "Silicon Labs CP210x",
+                    "ch340" => "WCH CH340",
+                    "ftdi" => "FTDI",
+                    _ => "USB serial device",
+                };
+                let product = usb.product.filter(|s| !s.trim().is_empty())
+                    // Windows appends " (COM5)" to the product name; drop it, the label already has the port.
+                    .map(|s| s.split(" (COM").next().unwrap_or(&s).trim().to_string())
+                    .unwrap_or_else(|| fallback.to_string());
+                Some(PortInfo { label: format!("{} — {product}", p.port_name), name: p.port_name, chip })
+            }
+            _ => None,
+        })
+        .collect())
+}
+
+/// Asks the board on `port` which Number Bomb firmware it runs, over USB, without
+/// pairing. Returns None for a blank board or other firmware (e.g. Lucky Draw's).
+/// Opening the port may restart some ESP32 boards, which also disarms them, so
+/// the app only probes while the popper is disarmed.
+#[tauri::command(async)]
+pub fn popper_probe(state: tauri::State<'_, PopperState>, port: String) -> Result<Option<u32>, String> {
+    let s = state.session.lock().map_err(|_| "Device busy")?;
+    if s.armed.is_some() { return Err("Disarm the popper before checking its firmware.".into()); }
+    let mut serial = serialport::new(&port, 115200).timeout(Duration::from_millis(100))
+        .open().map_err(|e| format!("Could not open {port}: {e}"))?;
+    let _ = serial.write_data_terminal_ready(false);
+    let _ = serial.write_request_to_send(false);
+    let mut pending = String::new();
+    let mut buffer = [0u8; 256];
+    // Long enough to cover a restart triggered by opening the port.
+    let deadline = Instant::now() + Duration::from_millis(2500);
+    let mut hello_at = Instant::now() - Duration::from_secs(1);
+    while Instant::now() < deadline {
+        if hello_at.elapsed() > Duration::from_millis(400) {
+            serial.write_all(b"NB_HELLO\n").map_err(|e| e.to_string())?;
+            hello_at = Instant::now();
+        }
+        if let Ok(n) = serial.read(&mut buffer) {
+            pending.push_str(&String::from_utf8_lossy(&buffer[..n]));
+            if let Some(version) = parse_hello(&pending) { return Ok(Some(version)); }
+            if pending.len() > 4096 { pending.clear(); }
+        }
+    }
+    Ok(None)
+}
+
+/// Finds the version in a "NB_POPPER:<n>" identification line.
+fn parse_hello(text: &str) -> Option<u32> {
+    let start = text.find("NB_POPPER:")? + "NB_POPPER:".len();
+    let digits: String = text[start..].chars().take_while(|c| c.is_ascii_digit()).collect();
+    // Only accept a complete line, so "NB_POPPER:1" isn't misread mid-transfer as a shorter number.
+    let rest = &text[start + digits.len()..];
+    if digits.is_empty() || !(rest.starts_with('\r') || rest.starts_with('\n')) { return None; }
+    digits.parse().ok()
 }
 
 #[tauri::command(async)]
@@ -357,6 +432,17 @@ mod tests {
             let _ = finish_poll(&mut session, control.generation(), &control, Err("timed out".into()));
             assert_eq!(session.armed.is_some(), i < MAX_MISSED_POLLS);
         }
+    }
+    #[test] fn reads_firmware_version_from_a_complete_hello_line() {
+        assert_eq!(parse_hello("boot noise\r\nNB_POPPER:1\r\nNB_FW_VERSION=1\r\n"), Some(1));
+        assert_eq!(parse_hello("NB_POPPER:12\n"), Some(12));
+        assert_eq!(parse_hello("NB_POPPER:1"), None); // line not finished yet
+        assert_eq!(parse_hello("Lucky Draw buzzer ready\r\n"), None);
+    }
+    #[test] fn names_usb_serial_chip_families() {
+        assert_eq!(chip_family(0x10C4), "cp210x");
+        assert_eq!(chip_family(0x1A86), "ch340");
+        assert_eq!(chip_family(0x1234), "other");
     }
     #[test] fn cancellation_before_socket_registration_prevents_the_old_poll() {
         let control = PollCancellation::default();
